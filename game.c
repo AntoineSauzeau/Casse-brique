@@ -8,6 +8,14 @@ int tile_map_l1[N_BRICK_LINE][N_BRICK_COLUMN] = {
 	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 };
 
+int tile_map_l2[N_BRICK_LINE][N_BRICK_COLUMN] = {
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1},
+	{1, 1, 1, 0, 2, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 2, 0, 1, 1, 1},
+	{1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+};
+
 int** tile_map = NULL;
 
 int bar_width = 175;
@@ -39,7 +47,7 @@ void CreateGame() {
 
 	SetTileMap(1);
 
-	struct Ball* ball = AddBall(INTERFACE_WIDTH / 2, INTERFACE_HEIGHT / 2);
+	struct Ball* ball = AddBall(INTERFACE_WIDTH / 2, INTERFACE_HEIGHT / 2 + 45);
 	StartBall(ball, -1);
 
 	mutex_time = SDL_CreateMutex();
@@ -47,16 +55,35 @@ void CreateGame() {
 		SDL_Log("Error SDL_CreateMutex : %s", SDL_GetError());
 	}
 
+	ShowStartMessage();
 }
 
 void DestroyGame() {
 	Free2DimIntArray(tile_map);
+
+	SDL_DestroyMutex(mutex_time);
 }
 
 void StartGame() {
 	game_status = IN_PROGRESS;
 
 	StartTimer();
+	HideStartMessage();
+}
+
+void ResetGame()
+{
+	SetTileMap(1);
+
+	time_elapsed = 0;
+
+	n_life = 3;
+	score = 0;
+
+	DestroyBalls();
+
+	struct Ball* ball = AddBall(INTERFACE_WIDTH / 2, INTERFACE_HEIGHT / 2 + 45);
+	StartBall(ball, -1);
 }
 
 int **Alloc2DimIntArray(int L, int C)
@@ -69,9 +96,9 @@ int **Alloc2DimIntArray(int L, int C)
 	}
 
 	for (int i = 0; i < L; i++) {
-		array[i] = malloc(C * sizeof(int));
+		*(array + i) = (int *) malloc(C * sizeof(int));
 
-		if (&array[i] == NULL) {
+		if (array[i] == NULL) {
 			printf("Error malloc");
 		}
 	}
@@ -91,6 +118,13 @@ void Free2DimIntArray(int **array) {
 	}
 }
 
+void DestroyBalls()
+{
+	for (int i = 0; i < n_ball; i++) {
+		RemoveBall(i);
+	}
+}
+
 void SetTileMap(int level)
 {
 	
@@ -103,6 +137,13 @@ void SetTileMap(int level)
 
 		for (int l = 0; l < N_BRICK_LINE; l++) {
 			memcpy(tile_map[l], tile_map_l1[l], tile_map_size / N_BRICK_LINE);
+		}
+	}
+	else if (level == 2) {
+		int tile_map_size = N_BRICK_COLUMN * N_BRICK_LINE * sizeof(int);
+
+		for (int l = 0; l < N_BRICK_LINE; l++) {
+			memcpy(tile_map[l], tile_map_l2[l], tile_map_size / N_BRICK_LINE);
 		}
 	}
 
@@ -164,7 +205,7 @@ struct Ball* AddBall(double x, double y) {
 	int ball_array_new_size = (n_ball + 1) * sizeof(struct Ball);
 
 	struct Ball* l_ball_tmp = NULL;
-	l_ball_tmp = realloc(l_ball, ball_array_new_size);
+	l_ball_tmp = (struct Ball*)realloc(l_ball, ball_array_new_size);
 	if (l_ball_tmp == NULL) {
 		printf("Error realloc");
 		ExitBreakout(EXIT_FAILURE);
@@ -180,6 +221,7 @@ struct Ball* AddBall(double x, double y) {
 	ball.radius = 8;
 	ball.color = RED;
 	ball.direction = -1;
+	ball.build_in_bricks = false;
 
 	n_ball++;
 	struct Ball* ball_ptr = l_ball + n_ball - 1;
@@ -206,7 +248,7 @@ void RemoveBall(int index) {
 	}
 
 	struct Ball* l_ball_tmp = NULL;
-	l_ball_tmp = realloc(l_ball, ball_array_new_size);
+	l_ball_tmp = (struct Ball*)realloc(l_ball, ball_array_new_size);
 	if (l_ball_tmp == NULL) {
 		printf("Error realoc");
 		ExitBreakout(EXIT_FAILURE);
@@ -265,6 +307,8 @@ void EndBonus()
 			struct Ball* ball = l_ball + i;
 			ball->speed = ball->speed_to_restore;
 		}
+
+		HideSpeed3Message();
 	}
 
 	bonus = NONE_BONUS;
@@ -288,6 +332,8 @@ void SetBonus(enum Bonus p_bonus)
 			ball->speed_to_restore = ball->speed;
 			ball->speed = ball->speed * 3;
 		}
+
+		ShowSpeed3Message();
 	}
 	
 	if (interval != 0) {
@@ -345,23 +391,23 @@ char* GetFormattedTimeElapsed()
 	char second_string[3];
 	sprintf_s(second_string, 3, "%d", n_second);
 
-	char time_elapsed_string[9] = "";
+	char time_elapsed_string[9] = { "" };
 	if (n_hour < 10) {
-		strcat(time_elapsed_string, "0");
+		strcat_s(time_elapsed_string, 9 ,"0");
 	}
-	strcat(time_elapsed_string, hour_string);
-	strcat(time_elapsed_string, ":");
+	strcat_s(time_elapsed_string, 9, hour_string);
+	strcat_s(time_elapsed_string, 9, ":");
 
 	if (n_minute < 10) {
-		strcat(time_elapsed_string, "0");
+		strcat_s(time_elapsed_string, 9, "0");
 	}
-	strcat(time_elapsed_string, minute_string);
-	strcat(time_elapsed_string, ":");
+	strcat_s(time_elapsed_string, 9, minute_string);
+	strcat_s(time_elapsed_string, 9, ":");
 
 	if (n_second < 10) {
-		strcat(time_elapsed_string, "0");
+		strcat_s(time_elapsed_string, 9, "0");
 	}
-	strcat(time_elapsed_string, second_string);
+	strcat_s(time_elapsed_string, 9, second_string);
 
 	return time_elapsed_string;
 }
@@ -415,7 +461,7 @@ int GetNBall() {
 
 void UpdateBallMovement(struct Ball* ball) {
 
-	printf("%d", ball->direction);
+	//printf("%d", ball->direction);
 
 	double ball_x = ball->x;
 	double ball_y = ball->y;
@@ -489,7 +535,8 @@ void UpdateBallMovement(struct Ball* ball) {
 
 
 	//Rebond brique
-	double ball_direction = ball->direction;
+	double initial_ball_direction = ball->direction;
+	int ball_direction_to_keep = -1;
 	for (int l = 0; l < N_BRICK_LINE; l++) {
 
 		for (int c = 0; c < N_BRICK_COLUMN; c++) {
@@ -498,15 +545,66 @@ void UpdateBallMovement(struct Ball* ball) {
 			if (brick_value != 0) {
 
 				double brick_center_x = (double)c * BRICK_WIDTH + BRICK_WIDTH / 2;
-				double brick_center_y = (double)l * BRICK_HEIGHT + BRICK_HEIGHT / 2 + 2 * BRICK_HEIGHT;
+				double brick_center_y = (double)l * BRICK_HEIGHT + BRICK_HEIGHT / 2 + (double)2 * BRICK_HEIGHT;
 
 				SDL_Rect brick_rect = { brick_center_x, brick_center_y, BRICK_WIDTH , BRICK_HEIGHT };
 				
 				enum BrickIntersection intersection = CircleIntersectRect(ball_circle, brick_rect);
+
+
 				if (intersection != NONE_INTERSECTION) {
 
+					if (intersection == CORNER_BOTTOM_LEFT) {
+
+						if (ball->direction >= 0 && ball->direction < 90) {
+							intersection = CORNER;
+						}
+						else if (ball->direction >= 90 && intersection < 180) {
+							intersection = TOP_OR_BOTTOM;
+						}
+						else if (ball->direction >= 270 && intersection < 360) {
+							intersection = LEFT_OR_RIGHT;
+						}
+					}
+					else if (intersection == CORNER_BOTTOM_RIGHT) {
+
+						if (ball->direction >= 90 && ball->direction < 180) {
+							intersection = CORNER;
+						}
+						else if (ball->direction >= 0 && ball->direction < 90) {
+							intersection = TOP_OR_BOTTOM;
+						}
+						else if (ball->direction >= 180 && ball->direction < 270) {
+							intersection = LEFT_OR_RIGHT;
+						}
+					}
+					else if (intersection == CORNER_TOP_LEFT) {
+
+						if (ball->direction >= 270 && ball->direction < 360) {
+							intersection = CORNER;
+						}
+						else if (ball->direction >= 180 && ball->direction < 270) {
+							intersection = TOP_OR_BOTTOM;
+						}
+						else if (ball->direction >= 0 && ball->direction < 90) {
+							intersection = LEFT_OR_RIGHT;
+						}
+					}
+					else if (intersection == CORNER_TOP_RIGHT) {
+
+						if (ball->direction >= 180 && ball->direction < 270) {
+							intersection = CORNER;
+						}
+						else if (ball->direction >= 270 && ball->direction < 360) {
+							intersection = TOP_OR_BOTTOM;
+						}
+						else if (ball->direction >= 90 && ball->direction < 180) {
+							intersection = LEFT_OR_RIGHT;
+						}
+					}
+
 					if (intersection == LEFT_OR_RIGHT) {
-						printf("LEFT_OR_RIGHT");
+						printf("LEFT_OR_RIGHT \n");
 
 						//Left
 						if (ball->direction >= 0 && ball->direction < 90) {
@@ -526,7 +624,7 @@ void UpdateBallMovement(struct Ball* ball) {
 
 					}
 					else if (intersection == TOP_OR_BOTTOM) {
-						printf("TOP_OR_BOTTOM");
+						printf("TOP_OR_BOTTOM \n");
 
 						//Bottom
 						if (ball->direction >= 0 && ball->direction < 90) {
@@ -546,7 +644,8 @@ void UpdateBallMovement(struct Ball* ball) {
 
 					}
 					else if (intersection == CORNER) {
-						printf("CORNER");
+						printf("CORNER \n");
+
 						ball->direction = (ball->direction + 180) % 360;
 					}
 
@@ -554,12 +653,17 @@ void UpdateBallMovement(struct Ball* ball) {
 					if (brick == 1) {
 						score += 20;
 					}
-					if (brick == 2) {
+					else if (brick == 2) {
 						score += 50;
 
 						SetBonus(SPEED3);
 
 						timer_bonus_id = SDL_AddTimer(3000, EndBonus, NULL);
+					}
+					else if (brick == 3) {
+						score += 50;
+
+						n_life++;
 					}
 
 
@@ -567,14 +671,22 @@ void UpdateBallMovement(struct Ball* ball) {
 				}
 			}
 
-			if (ball_direction != ball->direction) {
-				break;
+			//If some bricks are affected, the direction is changed only once
+			if (initial_ball_direction != ball->direction) {
+				
+				if (ball_direction_to_keep == -1) {
+
+					printf("New direction %f -> ", initial_ball_direction);
+					printf("%d \n", ball->direction);
+
+					ball_direction_to_keep = ball->direction;
+				}
 			}
 		}
+	}
 
-		if (ball_direction != ball->direction) {
-			break;
-		}
+	if (ball_direction_to_keep != -1) {
+		ball->direction = ball_direction_to_keep;
 	}
 
 
@@ -615,12 +727,12 @@ void UpdateBallMovement(struct Ball* ball) {
 
 			if (ball->direction >= 180 && ball->direction < 270) {
 				//ball->direction = ball->direction - 90;
-				ball->direction = 157.5;
+				ball->direction = 157;
 	
 			}
 			else if (ball->direction >= 270 && ball->direction < 360) {
 				//ball->direction = (ball->direction + 90) % 360;
-				ball->direction = 22.5;
+				ball->direction = 22;
 			}
 		}
 		else if(ball_x >= bar_part3_min_x && ball_x <= bar_part3_max_x) {
@@ -650,13 +762,17 @@ void UpdateBallMovement(struct Ball* ball) {
 	ball->x = ball_x;
 	ball->y = ball_y;
 
-	printf(" %d \n", ball->direction);
+	//printf(" %d \n", ball->direction);
 }
 
 void NextLevel()
 {
 	level_index++;
 	SetTileMap(level_index);
+
+	DestroyBalls();
+
+	ShowNextlevelMessage(level_index);
 }
 
 enum BrickIntersection CircleIntersectRect(struct Circle circle, struct SDL_Rect rect)
@@ -677,7 +793,7 @@ enum BrickIntersection CircleIntersectRect(struct Circle circle, struct SDL_Rect
 		if ((distance_x - rect.w / 2) > (distance_y - rect.h / 2)) {
 			return LEFT_OR_RIGHT;
 		}
-		else {
+		else if ((distance_x - rect.w / 2) < (distance_y - rect.h / 2)){
 			return TOP_OR_BOTTOM;
 		}
 
@@ -686,7 +802,19 @@ enum BrickIntersection CircleIntersectRect(struct Circle circle, struct SDL_Rect
 	double corner_distance = pow((distance_x - rect.w / 2), 2) + pow((distance_y - rect.h / 2), 2);
 
 	if ((corner_distance <= (pow(circle.radius, 2)))) {
-		return CORNER;
+		
+		if ((circle.x < rect.x - (double)rect.w / 2) && (circle.y < rect.y - (double)rect.h / 2)) {
+			return CORNER_TOP_LEFT;
+		}
+		else if ((circle.x > rect.x + (double)rect.w / 2) && (circle.y > rect.y + (double)rect.h / 2)) {
+			return CORNER_BOTTOM_RIGHT;
+		}
+		else if ((circle.x < rect.x - (double)rect.w / 2) && (circle.y > rect.y + (double)rect.h / 2)) {
+			return CORNER_BOTTOM_LEFT;
+		}
+		else if ((circle.x > rect.x + (double)rect.w / 2) && (circle.y < rect.y - (double)rect.h / 2)) {
+			return CORNER_TOP_RIGHT;
+		}
 	}
 	else {
 		return NONE_INTERSECTION;
@@ -710,6 +838,12 @@ void UpdateGame() {
 					struct Ball* ball = AddBall(INTERFACE_WIDTH / 2, INTERFACE_HEIGHT / 2);
 					StartBall(ball, -1);
 				}
+				else {
+					ShowGameoverMessage();
+
+					game_status = FINISHED;
+					StopTimer();
+				}
 			}
 
 
@@ -722,12 +856,24 @@ void UpdateGame() {
 
 void GameEvent(SDL_Event event)
 {
+
 	switch (event.type) {
 	case SDL_KEYDOWN:
 	{
 
 		if (game_status == NOT_STARTED) {
+
 			if (event.key.keysym.sym == SDLK_SPACE) {
+				StartGame();
+			}
+		}
+		else if (game_status == FINISHED) {
+
+			if (event.key.keysym.sym == SDLK_SPACE) {
+
+				HideGameoverMessage();
+
+				ResetGame();
 				StartGame();
 			}
 		}

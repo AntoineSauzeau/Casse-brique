@@ -13,7 +13,7 @@
 #define BRICK_HEIGHT 30
 
 #define BAR_MOVE_VALUE 35
-#define BALL_MOVE_BASE_VALUE 5
+#define BALL_MOVE_BASE_VALUE 7
 
 #define BAR_PART1_RATIO 0.6
 #define BAR_PART2_RATIO 0.3
@@ -31,6 +31,8 @@ struct Ball {
 	int direction;
 	SDL_Color color;
 
+	bool build_in_bricks;
+
 	//Bonus
 	double speed_to_restore;
 };
@@ -43,13 +45,16 @@ struct Circle {
 
 enum Bonus {NONE_BONUS, SPEED3};
 
-enum BrickIntersection { NONE_INTERSECTION, LEFT_OR_RIGHT, TOP_OR_BOTTOM, CORNER };
+enum BrickIntersection { NONE_INTERSECTION, LEFT_OR_RIGHT, TOP_OR_BOTTOM, CORNER_TOP_RIGHT, CORNER_TOP_LEFT, CORNER_BOTTOM_RIGHT, CORNER_BOTTOM_LEFT, CORNER };
 
 
 void CreateGame();
 void DestroyGame();
 
 void StartGame();
+
+void ResetGame();
+void DestroyBalls();
 
 int **Alloc2DimIntArray(int L, int C);
 void Free2DimIntArray(int ** array);

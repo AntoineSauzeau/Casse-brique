@@ -10,7 +10,7 @@
 
 
 void FreeBreakout();
-void ExitBreakout(int);
+extern void ExitBreakout(int);
 
 void FreeBreakout() {
 	DestroyInterface();

@@ -2,9 +2,12 @@
 #include "SDL/SDL_ttf.h"
 #include "SDL/SDL_image.h"
 
-SDL_Color WHITE = { 255, 255, 255, 0 };
-SDL_Color BLACK = { 0, 0, 0, 0 };
-SDL_Color TRANSPARENT = { 0, 0, 0, 100 };
+#include <stdbool.h>
+#include <stdlib.h> 
+#include <string.h>
+#include <stdio.h>
+
+#include "colors.h"
 
 struct Message {
 
@@ -13,10 +16,8 @@ struct Message {
 	SDL_Color title_color;
 	SDL_Color subtitle_color;
 
-	int title_size;
-	int subtitle_size;
-
-	TTF_Font* font;
+	TTF_Font* font_title;
+	TTF_Font* font_subtitle;
 
 	SDL_Color background_color;
 	SDL_Color border_color;
@@ -28,10 +29,31 @@ struct Message {
 
 	SDL_Point position;
 
+	struct MessageImage** l_message_image;
+	SDL_mutex* l_message_image_mutex;
+	int n_image;
 };
 
+struct MessageImage{
+	SDL_Texture* texture;
+	SDL_Rect position;
+};
+
+void InitMessages();
+void DestroyMessages();
+
 void DrawMessage(SDL_Renderer* renderer, struct Message* message);
-int MessageWidth(struct Message* message);
-int MessageHeight(struct Message* message);
+void DrawMessages(SDL_Renderer* renderer);
+
+int MessageWidth(SDL_Renderer* renderer, struct Message* message);
+int MessageHeight(SDL_Renderer* renderer, struct Message* message);
+
 struct Message CreateMessage();
+void SetDisplayMessage(struct Message* message, bool displayed);
+bool MessageDisplayed(struct Message* message);
+bool SameMessage(struct Message* m1, struct Message* m2);
+
+void DrawImages(SDL_Renderer* renderer, struct Message* message);
+void AddImage(struct Message* message, struct MessageImage* m_image);
+void RemoveImage(struct Message* message, struct MessageImage* m_image);
 

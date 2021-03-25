@@ -5,11 +5,24 @@ SDL_Renderer* renderer = NULL;
 
 SDL_Thread* display_thread = NULL;
 
+TTF_Font* font_roboto_35 = NULL;
 TTF_Font* font_roboto_25 = NULL;
 TTF_Font* font_roboto_18 = NULL;
 
 SDL_Surface* image_hearth_surface = NULL;
 SDL_Texture* image_hearth_texture = NULL;
+
+SDL_Surface* image_rocket_surface = NULL;
+SDL_Texture* image_rocket_texture = NULL;
+
+struct Message message_start;
+struct Message message_speed3;
+struct Message message_gameover;
+struct Message message_nextlevel;
+
+struct MessageImage m_image_rocket;
+
+SDL_TimerID timer_message_nextlevel;
 
 void CreateInterface() {
 
@@ -25,6 +38,9 @@ void CreateInterface() {
 
 	LoadImages();
 	LoadFonts();
+
+	InitMessages();
+	CreateMessages();
 }
 
 void LoadFonts() {
@@ -42,7 +58,13 @@ void LoadFonts() {
 		SDL_Log("Error TTF_OpenFont : %s", TTF_GetError());
 		ExitBreakout(EXIT_FAILURE);
 	}
-	
+
+	font_roboto_35 = TTF_OpenFont("Roboto-Medium.ttf", 35);
+
+	if (!font_roboto_35) {
+		SDL_Log("Error TTF_OpenFont : %s", TTF_GetError());
+		ExitBreakout(EXIT_FAILURE);
+	}
 }
 
 void FreeFonts() {
@@ -57,6 +79,13 @@ void LoadImages()
 	}
 
 	image_hearth_texture = SDL_CreateTextureFromSurface(renderer, image_hearth_surface);
+
+	image_rocket_surface = IMG_Load("rocket.png");
+	if (!image_rocket_surface) {
+		SDL_Log("Error IMG_Load : %s", IMG_GetError());
+	}
+
+	image_rocket_texture = SDL_CreateTextureFromSurface(renderer, image_rocket_surface);
 }
 
 void FreeImages() {
@@ -65,8 +94,10 @@ void FreeImages() {
 }
 
 void DestroyInterface() {
-	SDL_DestroyWindow(window);
 	SDL_DestroyRenderer(renderer);
+	SDL_DestroyWindow(window);
+
+	DestroyMessages();
 
 	FreeImages();
 	FreeFonts();
@@ -119,8 +150,6 @@ void GameLoop() {
 		end_t = clock();
 		total_t = ((double)end_t - (double)start_t) / CLOCKS_PER_SEC;
 
-		//printf(total_t);
-
 		double time_to_wait = 1. / FPS - total_t;
 		time_to_wait = time_to_wait * 1000;
 
@@ -169,6 +198,9 @@ void Draw() {
 				else if (case_value == 2) {
 					brick_color = BLUE_1;
 				}
+				else if (case_value == 3) {
+					brick_color = VIOLET_2;
+				}
 
 				SDL_SetRenderDrawColor(renderer, brick_color.r, brick_color.g, brick_color.b, brick_color.a);
 				SDL_RenderFillRect(renderer, &rect);
@@ -205,25 +237,32 @@ void Draw() {
 
 	//Draw level text
 	SDL_Surface* txt_level_surface = TTF_RenderText_Blended(font_roboto_25, "Level 1", WHITE);
-	SDL_Texture* txt_level_texture = SDL_CreateTextureFromSurface(renderer, txt_level_surface);
+	if (txt_level_surface != NULL) {
+		SDL_Texture* txt_level_texture = SDL_CreateTextureFromSurface(renderer, txt_level_surface);
 
-	SDL_Rect txt_level_position;
-	txt_level_position.x = 10;
-	txt_level_position.y = INTERFACE_HEIGHT - 38;
-	txt_level_position.w = txt_level_surface->w;
-	txt_level_position.h = txt_level_surface->h;
+		SDL_Rect txt_level_position;
+		txt_level_position.x = 10;
+		txt_level_position.y = INTERFACE_HEIGHT - 38;
+		txt_level_position.w = txt_level_surface->w;
+		txt_level_position.h = txt_level_surface->h;
 
-	SDL_RenderCopy(renderer, txt_level_texture, NULL, &txt_level_position);
+		SDL_RenderCopy(renderer, txt_level_texture, NULL, &txt_level_position);
 
-	SDL_FreeSurface(txt_level_surface);
-	SDL_DestroyTexture(txt_level_texture);
+		SDL_FreeSurface(txt_level_surface);
+		SDL_DestroyTexture(txt_level_texture);
+	}
+	else {
+		SDL_Log("Error TTF_RenderText_Blended : %s", TTF_GetError());
+	}
 
 	//Draw score text
-	char score_value_string[5] = "";
+	char score_value_string[5] = { "" };
 	sprintf_s(score_value_string, 5, "%d", GetScore());
 
-	char txt_score[13] = "Score : ";
-	strcat(txt_score, score_value_string);
+	char txt_score[13] = {""};
+	strcat_s(txt_score, 13, "Score : ");
+	strcat_s(txt_score, 13, score_value_string);
+
 
 	SDL_Surface* txt_score_surface = TTF_RenderText_Blended(font_roboto_25, txt_score, WHITE);
 	if (txt_score_surface != NULL) {
@@ -247,31 +286,33 @@ void Draw() {
 
 	//Draw life text
 	SDL_Surface* txt_life_surface = TTF_RenderText_Blended(font_roboto_25, "Vies restantes : ", WHITE);
-	SDL_Texture* txt_life_texture = SDL_CreateTextureFromSurface(renderer, txt_life_surface);
+	if (txt_life_surface != NULL) {
+		SDL_Texture* txt_life_texture = SDL_CreateTextureFromSurface(renderer, txt_life_surface);
 
-	SDL_Rect txt_life_position;
-	txt_life_position.x = 210;
-	txt_life_position.y = INTERFACE_HEIGHT - 38;
-	txt_life_position.w = txt_life_surface->w;
-	txt_life_position.h = txt_life_surface->h;
+		SDL_Rect txt_life_position;
+		txt_life_position.x = 210;
+		txt_life_position.y = INTERFACE_HEIGHT - 38;
+		txt_life_position.w = txt_life_surface->w;
+		txt_life_position.h = txt_life_surface->h;
 
-	SDL_RenderCopy(renderer, txt_life_texture, NULL, &txt_life_position);
+		SDL_RenderCopy(renderer, txt_life_texture, NULL, &txt_life_position);
 
-	SDL_FreeSurface(txt_life_surface);
-	SDL_DestroyTexture(txt_life_texture);
+		SDL_FreeSurface(txt_life_surface);
+		SDL_DestroyTexture(txt_life_texture);
 
-	int hearth_x_min = 210 + txt_life_position.w;
+		int hearth_x_min = 210 + txt_life_position.w;
 
-	int n_life = GetNLife();
-	for (int i = 0; i < n_life; i++) {
+		int n_life = GetNLife();
+		for (int i = 0; i < n_life; i++) {
 
-		SDL_Rect hearth_image_position;
-		hearth_image_position.x = hearth_x_min + i * 25 + i * 12;
-		hearth_image_position.y = INTERFACE_HEIGHT - 65;
-		hearth_image_position.w = 32;
-		hearth_image_position.h = 87;
+			SDL_Rect hearth_image_position;
+			hearth_image_position.x = hearth_x_min + i * 25 + i * 12;
+			hearth_image_position.y = INTERFACE_HEIGHT - 65;
+			hearth_image_position.w = 32;
+			hearth_image_position.h = 87;
 
-		SDL_RenderCopy(renderer, image_hearth_texture, NULL, &hearth_image_position);
+			SDL_RenderCopy(renderer, image_hearth_texture, NULL, &hearth_image_position);
+		}
 	}
 
 	//Draw timer text
@@ -299,18 +340,24 @@ void Draw() {
 
 	//Draw bonus text
 	SDL_Surface* txt_bonus_surface = TTF_RenderText_Blended(font_roboto_18, "Bonus actuel : ", WHITE);
-	SDL_Texture* txt_bonus_texture = SDL_CreateTextureFromSurface(renderer, txt_bonus_surface);
+	if (txt_bonus_surface != NULL) {
 
-	SDL_Rect txt_bonus_position;
-	txt_bonus_position.x = 450;
-	txt_bonus_position.y = 4;
-	txt_bonus_position.w = txt_bonus_surface->w;
-	txt_bonus_position.h = txt_bonus_surface->h;
+		SDL_Texture* txt_bonus_texture = SDL_CreateTextureFromSurface(renderer, txt_bonus_surface);
 
-	SDL_RenderCopy(renderer, txt_bonus_texture, NULL, &txt_bonus_position);
+		SDL_Rect txt_bonus_position;
+		txt_bonus_position.x = 450;
+		txt_bonus_position.y = 4;
+		txt_bonus_position.w = txt_bonus_surface->w;
+		txt_bonus_position.h = txt_bonus_surface->h;
 
-	SDL_FreeSurface(txt_bonus_surface);
-	SDL_DestroyTexture(txt_bonus_texture);
+		SDL_RenderCopy(renderer, txt_bonus_texture, NULL, &txt_bonus_position);
+
+		SDL_FreeSurface(txt_bonus_surface);
+		SDL_DestroyTexture(txt_bonus_texture);
+	}
+	else {
+		SDL_Log("Error TTF_RenderText_Blended : %s", TTF_GetError());
+	}
 
 	enum Bonus bonus = GetBonus();
 	char* bonus_name = "";
@@ -340,8 +387,13 @@ void Draw() {
 		SDL_FreeSurface(txt_bonus_val_surface);
 		SDL_DestroyTexture(txt_bonus_val_texture);
 
-		SDL_RenderPresent(renderer);
 	}
+	else {
+		SDL_Log("Error TTF_RenderText_Blended : %s", TTF_GetError());
+	}
+
+	DrawMessages(renderer);
+	SDL_RenderPresent(renderer);
 
 }
 
@@ -388,3 +440,94 @@ int SDL_RenderFillCircle(SDL_Renderer* renderer, int x, int y, int radius) {
 
 	return status;
 }
+
+bool SameColor(SDL_Color c1, SDL_Color c2)
+{
+	return c1.r == c2.r && c1.g == c2.g && c1.b == c2.b && c1.a == c2.a;
+}
+
+void CreateMessages()
+{
+	message_start = CreateMessage();
+	message_start.title = "Veuillez presser la touche espace pour commencer ! ";
+	message_start.font_title = font_roboto_25;
+	message_start.position.x = INTERFACE_WIDTH / 2;
+	message_start.position.y = INTERFACE_HEIGHT / 2 - 60;
+
+	message_speed3 = CreateMessage();
+	message_speed3.title = "Bonus : Vitesse multiplié par 3 !";
+	message_speed3.subtitle = "Durée : 3 secondes";
+	message_speed3.font_title = font_roboto_35;
+	message_speed3.font_subtitle = font_roboto_25;
+	message_speed3.position.x = INTERFACE_WIDTH / 2;
+	message_speed3.position.y = INTERFACE_HEIGHT / 2 - 60;
+	message_speed3.space_btw_titles = 55;
+
+	m_image_rocket.position.x = INTERFACE_WIDTH - image_rocket_surface->w / 2;
+	m_image_rocket.position.y = 450;
+	m_image_rocket.position.w = image_rocket_surface->w;
+	m_image_rocket.position.h = image_rocket_surface->h;
+
+	AddImage(&message_speed3, &m_image_rocket);
+
+	message_gameover = CreateMessage();
+	message_gameover.title = "Game over";
+	message_gameover.subtitle = "Presser la touche espace pour rejouer...";
+	message_gameover.font_title = font_roboto_35;
+	message_gameover.font_subtitle = font_roboto_25;
+	message_gameover.position.x = INTERFACE_WIDTH / 2;
+	message_gameover.position.y = INTERFACE_HEIGHT / 2 - 60;
+	message_gameover.space_btw_titles = 55;
+
+	message_nextlevel = CreateMessage();
+	message_nextlevel.title = "Niveau suivant !";
+	message_nextlevel.font_title = font_roboto_35;
+	message_nextlevel.font_subtitle = font_roboto_25;
+	message_nextlevel.position.x = INTERFACE_WIDTH / 2;
+	message_nextlevel.position.y = INTERFACE_HEIGHT / 2 - 60;
+	message_nextlevel.space_btw_titles = 55;
+}
+
+void ShowStartMessage()
+{
+	SetDisplayMessage(&message_start, true);
+}
+
+void HideStartMessage() {
+	SetDisplayMessage(&message_start, false);
+}
+
+void ShowSpeed3Message() {
+	SetDisplayMessage(&message_speed3, true);
+}
+
+void HideSpeed3Message() {
+	SetDisplayMessage(&message_speed3, false);
+}
+
+void ShowGameoverMessage()
+{
+	SetDisplayMessage(&message_gameover, true);
+}
+
+void HideGameoverMessage()
+{
+	SetDisplayMessage(&message_gameover, false);
+}
+
+void ShowNextlevelMessage(int level)
+{
+	message_nextlevel.subtitle = "Tu passes au niveau " + level;
+
+	SetDisplayMessage(&message_nextlevel, true);
+	timer_message_nextlevel = SDL_AddTimer(3000, HideNextlevelMessage, NULL);
+}
+
+void HideNextlevelMessage()
+{
+	SetDisplayMessage(&message_nextlevel, false);
+	SDL_RemoveTimer(timer_message_nextlevel);
+}
+
+
+
