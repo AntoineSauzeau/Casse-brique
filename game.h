@@ -3,9 +3,9 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include "math.h"
+#include <errno.h>
 
 #include "interface.h"
-//#include "main.c"
 
 #define N_BRICK_COLUMN 20
 #define N_BRICK_LINE 5

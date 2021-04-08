@@ -1,12 +1,20 @@
 #include "game.h"
 
 int tile_map_l1[N_BRICK_LINE][N_BRICK_COLUMN] = {
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-	{1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1},
-	{1, 1, 1, 0, 2, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 2, 0, 1, 1, 1},
-	{1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1},
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
+
+/*int tile_map_l1[N_BRICK_LINE][N_BRICK_COLUMN] = {
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1},
+	{1, 1, 1, 0, 2, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 2, 0, 1, 1, 1},
+	{1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+};*/
 
 int tile_map_l2[N_BRICK_LINE][N_BRICK_COLUMN] = {
 	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
@@ -204,10 +212,16 @@ struct Ball* AddBall(double x, double y) {
 
 	int ball_array_new_size = (n_ball + 1) * sizeof(struct Ball);
 
+	errno = 0;
 	struct Ball* l_ball_tmp = NULL;
+
 	l_ball_tmp = (struct Ball*)realloc(l_ball, ball_array_new_size);
 	if (l_ball_tmp == NULL) {
-		printf("Error realloc");
+
+		char error_string[94] = { '\0' };
+		strerror_s(error_string, 94, errno);
+
+		fprintf(stderr, "Error realloc : %s", error_string);
 		ExitBreakout(EXIT_FAILURE);
 	}
 

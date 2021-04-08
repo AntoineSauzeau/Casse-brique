@@ -11,8 +11,8 @@
 
 struct Message {
 
-	char* title;
-	char* subtitle;
+	char title[80];
+	char subtitle[80];
 	SDL_Color title_color;
 	SDL_Color subtitle_color;
 

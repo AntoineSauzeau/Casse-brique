@@ -449,14 +449,14 @@ bool SameColor(SDL_Color c1, SDL_Color c2)
 void CreateMessages()
 {
 	message_start = CreateMessage();
-	message_start.title = "Veuillez presser la touche espace pour commencer ! ";
+	strcpy_s(message_start.title, 80, "Veuillez presser la touche espace pour commencer ! ");
 	message_start.font_title = font_roboto_25;
 	message_start.position.x = INTERFACE_WIDTH / 2;
 	message_start.position.y = INTERFACE_HEIGHT / 2 - 60;
 
 	message_speed3 = CreateMessage();
-	message_speed3.title = "Bonus : Vitesse multiplié par 3 !";
-	message_speed3.subtitle = "Durée : 3 secondes";
+	strcpy_s(message_speed3.title, 80, "Bonus : Vitesse multiplié par 3 !");
+	strcpy_s(message_speed3.subtitle, 80, "Durée : 3 secondes");
 	message_speed3.font_title = font_roboto_35;
 	message_speed3.font_subtitle = font_roboto_25;
 	message_speed3.position.x = INTERFACE_WIDTH / 2;
@@ -471,8 +471,8 @@ void CreateMessages()
 	AddImage(&message_speed3, &m_image_rocket);
 
 	message_gameover = CreateMessage();
-	message_gameover.title = "Game over";
-	message_gameover.subtitle = "Presser la touche espace pour rejouer...";
+	strcpy_s(message_gameover.title, 80, "Game over");
+	strcpy_s(message_gameover.subtitle, 80, "Presser la touche espace pour rejouer...");
 	message_gameover.font_title = font_roboto_35;
 	message_gameover.font_subtitle = font_roboto_25;
 	message_gameover.position.x = INTERFACE_WIDTH / 2;
@@ -480,7 +480,7 @@ void CreateMessages()
 	message_gameover.space_btw_titles = 55;
 
 	message_nextlevel = CreateMessage();
-	message_nextlevel.title = "Niveau suivant !";
+	strcpy_s(message_nextlevel.title, 80, "Niveau suivant !");
 	message_nextlevel.font_title = font_roboto_35;
 	message_nextlevel.font_subtitle = font_roboto_25;
 	message_nextlevel.position.x = INTERFACE_WIDTH / 2;
@@ -517,7 +517,11 @@ void HideGameoverMessage()
 
 void ShowNextlevelMessage(int level)
 {
-	message_nextlevel.subtitle = "Tu passes au niveau " + level;
+	char level_string[3] = { '\0' };
+	sprintf_s(level_string, 3, "%d", level);
+
+	strcpy_s(message_nextlevel.subtitle, 80, "Tu passes au niveau ");
+	strcat_s(message_nextlevel.subtitle, 3, level_string);
 
 	SetDisplayMessage(&message_nextlevel, true);
 	timer_message_nextlevel = SDL_AddTimer(3000, HideNextlevelMessage, NULL);

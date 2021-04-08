@@ -8,8 +8,8 @@ int n_message_displayed = 0;
 struct Message CreateMessage()
 {
 	struct Message message;
-	message.title = "";
-	message.subtitle = "";
+	memset(message.title, '\0', 80);
+	memset(message.subtitle, '\0', 80);
 	message.title_color = WHITE;
 	message.subtitle_color = WHITE;
 	message.font_title = NULL;
