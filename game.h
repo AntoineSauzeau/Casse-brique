@@ -2,10 +2,7 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
-#include "math.h"
-#include <errno.h>
-
-#include "interface.h"
+#include "SDL.h"
 
 #define N_BRICK_COLUMN 20
 #define N_BRICK_LINE 5
@@ -15,11 +12,12 @@
 #define BAR_MOVE_VALUE 35
 #define BALL_MOVE_BASE_VALUE 7
 
-#define BAR_PART1_RATIO 0.6
-#define BAR_PART2_RATIO 0.3
+#define BAR_PART1_RATIO 0.4
+#define BAR_PART2_RATIO 0.5
 #define BAR_PART3_RATIO 0.1
 
-
+#define BALL_SPAWN_X (INTERFACE_WIDTH / 2)
+#define BALL_SPAWN_Y (INTERFACE_HEIGHT / 2 + 45)
 
 enum GameStatus { NOT_STARTED = 0, IN_PROGRESS = 1, PAUSED = 2, FINISHED = 3 };
 
@@ -27,6 +25,7 @@ struct Ball {
 	double x;
 	double y;
 	double speed;
+	double acceleration;
 	int radius;
 	int direction;
 	SDL_Color color;
@@ -83,6 +82,7 @@ struct Ball GetBall(int index);
 
 int GetNLife();
 int GetScore();
+int GetLevelIndex();
 
 enum Bonus GetBonus();
 void SetBonus(enum Bonus bonus);
@@ -94,6 +94,8 @@ char* GetFormattedTimeElapsed();
 void StartTimer();
 void StopTimer();
 Uint32 TimerCallback(Uint32 interval, void* parameters);
+void StartPause();
+void StopPause();
 
 void UpdateGame();
 void UpdateBallMovement(struct Ball* ball);

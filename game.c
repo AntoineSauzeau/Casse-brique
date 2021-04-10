@@ -1,27 +1,35 @@
 #include "game.h"
 
-int tile_map_l1[N_BRICK_LINE][N_BRICK_COLUMN] = {
+#include <math.h>
+#include <errno.h>
+#include <stdio.h>
+
+#include "interface_game.h"
+#include "interface.h"
+#include "colors.h"
+
+/*int tile_map_l1[N_BRICK_LINE][N_BRICK_COLUMN] = {
 	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-};
-
-/*int tile_map_l1[N_BRICK_LINE][N_BRICK_COLUMN] = {
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-	{1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1},
-	{1, 1, 1, 0, 2, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 2, 0, 1, 1, 1},
-	{1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1},
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 };*/
+
+int tile_map_l1[N_BRICK_LINE][N_BRICK_COLUMN] = {
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1},
+	{1, 1, 1, 0, 2, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 2, 0, 1, 1, 1},
+	{1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+};
 
 int tile_map_l2[N_BRICK_LINE][N_BRICK_COLUMN] = {
 	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-	{1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1},
-	{1, 1, 1, 0, 2, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 2, 0, 1, 1, 1},
-	{1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1},
-	{1, 1, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	{1, 2, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 1, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 2, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 };
 
 int** tile_map = NULL;
@@ -44,11 +52,13 @@ enum GameStatus game_status = NOT_STARTED;
 
 int n_life = 3;
 int score = 0;
-int level_index = 1;
+int level_index = 0;
 
 int time_elapsed = 0;
 SDL_TimerID timer_id = NULL;
 SDL_mutex* mutex_time = NULL;
+
+bool add_ball = false;
 
 
 void CreateGame() {
@@ -81,7 +91,8 @@ void StartGame() {
 
 void ResetGame()
 {
-	SetTileMap(1);
+	level_index = 0;
+	SetTileMap(level_index);
 
 	time_elapsed = 0;
 
@@ -90,7 +101,7 @@ void ResetGame()
 
 	DestroyBalls();
 
-	struct Ball* ball = AddBall(INTERFACE_WIDTH / 2, INTERFACE_HEIGHT / 2 + 45);
+	struct Ball* ball = AddBall(BALL_SPAWN_X, BALL_SPAWN_Y);
 	StartBall(ball, -1);
 }
 
@@ -140,14 +151,14 @@ void SetTileMap(int level)
 		tile_map = Alloc2DimIntArray(N_BRICK_LINE, N_BRICK_COLUMN);
 	}
 
-	if (level == 1) {
+	if (level == 0) {
 		int tile_map_size = N_BRICK_COLUMN * N_BRICK_LINE * sizeof(int);
 
 		for (int l = 0; l < N_BRICK_LINE; l++) {
 			memcpy(tile_map[l], tile_map_l1[l], tile_map_size / N_BRICK_LINE);
 		}
 	}
-	else if (level == 2) {
+	else if (level == 1) {
 		int tile_map_size = N_BRICK_COLUMN * N_BRICK_LINE * sizeof(int);
 
 		for (int l = 0; l < N_BRICK_LINE; l++) {
@@ -210,28 +221,37 @@ void SetBarY(int _bar_y) {
 
 struct Ball* AddBall(double x, double y) {
 
+	errno = 0;
+
 	int ball_array_new_size = (n_ball + 1) * sizeof(struct Ball);
 
-	errno = 0;
-	struct Ball* l_ball_tmp = NULL;
+	if (n_ball != 0) {
+		struct Ball* l_ball_tmp = NULL;
+		l_ball_tmp = (struct Ball*)realloc(l_ball, ball_array_new_size);
+		if (l_ball_tmp == NULL) {
 
-	l_ball_tmp = (struct Ball*)realloc(l_ball, ball_array_new_size);
-	if (l_ball_tmp == NULL) {
+			char error_string[94] = { '\0' };
+			strerror_s(error_string, 94, errno);
 
-		char error_string[94] = { '\0' };
-		strerror_s(error_string, 94, errno);
+			fprintf(stderr, "Error realloc : %s", error_string);
 
-		fprintf(stderr, "Error realloc : %s", error_string);
-		ExitBreakout(EXIT_FAILURE);
+			free(l_ball);
+			ExitBreakout(EXIT_FAILURE);
+		}
+
+		l_ball = l_ball_tmp;
 	}
-
-	l_ball = l_ball_tmp;
+	else {
+		l_ball = malloc(ball_array_new_size);
+	}
 
 	struct Ball ball;
 
 	ball.x = x;
 	ball.y = y;
 	ball.speed = 0.;
+	ball.speed_to_restore = -1;
+	ball.acceleration = 0.;
 	ball.radius = 8;
 	ball.color = RED;
 	ball.direction = -1;
@@ -247,6 +267,8 @@ struct Ball* AddBall(double x, double y) {
 
 void RemoveBall(int index) {
 
+	errno = 0;
+
 	for (int i = 0; i < n_ball; i++) {
 
 		if (i > index) {
@@ -258,13 +280,21 @@ void RemoveBall(int index) {
 
 	int ball_array_new_size = (n_ball) * sizeof(struct Ball);
 	if (ball_array_new_size == 0) {
+
+		free(l_ball);
 		return;
 	}
 
 	struct Ball* l_ball_tmp = NULL;
 	l_ball_tmp = (struct Ball*)realloc(l_ball, ball_array_new_size);
 	if (l_ball_tmp == NULL) {
-		printf("Error realoc");
+
+		char error_string[94] = { '\0' };
+		strerror_s(error_string, 94, errno);
+
+		fprintf(stderr, "Error realloc : %s", error_string);
+
+		free(l_ball);
 		ExitBreakout(EXIT_FAILURE);
 	}
 
@@ -319,7 +349,11 @@ void EndBonus()
 		for (int i = 0; i < n_ball; i++) {
 
 			struct Ball* ball = l_ball + i;
-			ball->speed = ball->speed_to_restore;
+
+			if (ball->speed_to_restore != -1) {
+				ball->speed = ball->speed_to_restore;
+				ball->speed_to_restore = -1;
+			}
 		}
 
 		HideSpeed3Message();
@@ -426,6 +460,11 @@ char* GetFormattedTimeElapsed()
 	return time_elapsed_string;
 }
 
+int GetLevelIndex()
+{
+	return level_index;
+}
+
 void StartTimer() 
 {
 	if (timer_id == NULL) {
@@ -475,26 +514,30 @@ int GetNBall() {
 
 void UpdateBallMovement(struct Ball* ball) {
 
-	//printf("%d", ball->direction);
-
 	double ball_x = ball->x;
 	double ball_y = ball->y;
 
+	double speed = ball->speed;
+	if (ball->acceleration != 0.) {
+		speed = speed * ball->acceleration;
+	}
+
+
 	if (ball->direction >= 0 && ball->direction < 90) {
-		ball_x = ball->x + BALL_MOVE_BASE_VALUE * (ball->speed / FPS) * (90. - ball->direction);
-		ball_y = ball->y - BALL_MOVE_BASE_VALUE * (ball->speed / FPS) * ball->direction;
+		ball_x = ball->x + BALL_MOVE_BASE_VALUE * (speed / FPS) * (90. - ball->direction);
+		ball_y = ball->y - BALL_MOVE_BASE_VALUE * (speed / FPS) * ball->direction;
 	}
 	else if (ball->direction >= 90 && ball->direction < 180) {
-		ball_x = ball->x - BALL_MOVE_BASE_VALUE * (ball->speed / FPS) * (ball->direction - 90.);
-		ball_y = ball->y - BALL_MOVE_BASE_VALUE * (ball->speed / FPS) * (180. - ball->direction);
+		ball_x = ball->x - BALL_MOVE_BASE_VALUE * (speed / FPS) * (ball->direction - 90.);
+		ball_y = ball->y - BALL_MOVE_BASE_VALUE * (speed / FPS) * (180. - ball->direction);
 	}
 	else if (ball->direction >= 180 && ball->direction < 270) {
-		ball_x = ball->x - BALL_MOVE_BASE_VALUE * (ball->speed / FPS) * (270. - ball->direction); 
-		ball_y = ball->y + BALL_MOVE_BASE_VALUE * (ball->speed / FPS) * (ball->direction - 180.); 
+		ball_x = ball->x - BALL_MOVE_BASE_VALUE * (speed / FPS) * (270. - ball->direction); 
+		ball_y = ball->y + BALL_MOVE_BASE_VALUE * (speed / FPS) * (ball->direction - 180.); 
 	}
 	else if (ball->direction >= 270 && ball->direction < 360) {
-		ball_x = ball->x + BALL_MOVE_BASE_VALUE * (ball->speed / FPS) * (ball->direction - 270.);
-		ball_y = ball->y + BALL_MOVE_BASE_VALUE * (ball->speed / FPS) * (360. - ball->direction);
+		ball_x = ball->x + BALL_MOVE_BASE_VALUE * (speed / FPS) * (ball->direction - 270.);
+		ball_y = ball->y + BALL_MOVE_BASE_VALUE * (speed / FPS) * (360. - ball->direction);
 	}
 
 
@@ -679,6 +722,16 @@ void UpdateBallMovement(struct Ball* ball) {
 
 						n_life++;
 					}
+					else if (brick == 4) {
+						score += 50;
+
+						ShowNewballMessage();
+						add_ball = true;
+					}
+
+					if (brick != 0) {
+						ball->acceleration = 0.;
+					}
 
 
 					SetTileMapCase(c, l, 0);
@@ -729,54 +782,41 @@ void UpdateBallMovement(struct Ball* ball) {
 		if (ball_x >= bar_part1_min_x && ball_x <= bar_part1_max_x) {
 
 			if (ball->direction >= 180 && ball->direction < 270) {
-				//ball->direction = ball->direction - 90;
-				ball->direction = 135;
+				ball->direction = 110;
 			}
 			else if (ball->direction >= 270 && ball->direction < 360) {
-				//ball->direction = (ball->direction + 90) % 360;
-				ball->direction = 45;
+				ball->direction = 70;
 			}
 		}
 		else if (ball_x >= bar_part2_min_x && ball_x <= bar_part2_max_x) {
 
-			if (ball->direction >= 180 && ball->direction < 270) {
-				//ball->direction = ball->direction - 90;
-				ball->direction = 157;
+			if (ball_x >= bar_x) {
+				ball->direction = 55;
 	
 			}
-			else if (ball->direction >= 270 && ball->direction < 360) {
-				//ball->direction = (ball->direction + 90) % 360;
-				ball->direction = 22;
+			else if (ball_x < bar_x) {
+				ball->direction = 125;
 			}
 		}
 		else if(ball_x >= bar_part3_min_x && ball_x <= bar_part3_max_x) {
 
-			if (ball->direction >= 180 && ball->direction < 270) {
-
-				if (ball->x <= bar_part2_min_x) {
-					ball->direction = ball->direction - 90;
-				}
-				else if (ball->x >= bar_part2_max_x) {
-					ball->direction = ball->direction - 180;
-				}
+			if (ball_x >= bar_x) {
+				ball->direction = 40;
 			}
-			else if (ball->direction >= 270 && ball->direction < 360) {
-
-				if (ball->x <= bar_part2_min_x) {
-					ball->direction = ball->direction - 180;
-				}
-				else if (ball->x >= bar_part2_max_x) {
-					ball->direction = (ball->direction + 90) % 360;
-				}
+			else if (ball_x < bar_x) {
+				ball->direction = 140;
 			}
+
+			ball->acceleration = 1.6;
 		}
 	}
 
+	printf("x: %f - %f \n", ball_x, ball->x);
+	printf("y: %f - %f \n", ball_y, ball->y);
+	printf("speed : %f \n", speed);
 
 	ball->x = ball_x;
 	ball->y = ball_y;
-
-	//printf(" %d \n", ball->direction);
 }
 
 void NextLevel()
@@ -785,6 +825,8 @@ void NextLevel()
 	SetTileMap(level_index);
 
 	DestroyBalls();
+	struct Ball* ball = AddBall(BALL_SPAWN_X, BALL_SPAWN_Y);
+	StartBall(ball, -1);
 
 	ShowNextlevelMessage(level_index);
 }
@@ -848,6 +890,8 @@ void UpdateGame() {
 				RemoveBall(i);
 				n_life--;
 
+				printf("Vie en moins");
+
 				if (n_life >= 1) {
 					struct Ball* ball = AddBall(INTERFACE_WIDTH / 2, INTERFACE_HEIGHT / 2);
 					StartBall(ball, -1);
@@ -865,6 +909,13 @@ void UpdateGame() {
 				NextLevel();
 			}
 		}
+	}
+
+	if (add_ball) {
+		struct Ball* ball = AddBall(BALL_SPAWN_X, BALL_SPAWN_Y);
+		StartBall(ball, -1);
+
+		add_ball = false;
 	}
 }
 
@@ -909,6 +960,15 @@ void GameEvent(SDL_Event event)
 					bar_x = bar_width / 2;
 				}
 			}
+			else if (event.key.keysym.sym == SDLK_p) {
+				StartPause();
+			}
+		}
+		else if (game_status == PAUSED) {
+
+			if (event.key.keysym.sym == SDLK_p) {
+				StopPause();
+			}
 		}
 
 		break;
@@ -936,4 +996,22 @@ void GameEvent(SDL_Event event)
 		break;
 	}
 	}
+}
+
+void StartPause()
+{
+	game_status = PAUSED;
+	ShowPauseMessage();
+
+}
+
+void StopPause()
+{
+	game_status = IN_PROGRESS;
+	HidePauseMessage();
+}
+
+
+void UpdatePaddleAcceleration() {
+
 }
