@@ -1,13 +1,20 @@
 #include "message.h"
 
-struct Message** l_message_displayed = NULL;
+#include "SDL/SDL_image.h"
+
+#include <string.h>
+#include <stdio.h>
+
+#include "colors.h"
+
+Message** l_message_displayed = NULL;
 SDL_mutex* l_message_mutex = NULL;
 int n_message_displayed = 0;
 
 
-struct Message CreateMessage()
+Message CreateMessage()
 {
-	struct Message message;
+	Message message;
 	memset(message.title, '\0', 80);
 	memset(message.subtitle, '\0', 80);
 	message.title_color = WHITE;
@@ -34,13 +41,14 @@ struct Message CreateMessage()
 	return message;
 }
 
-void SetDisplayMessage(struct Message* message, bool display)
+void SetDisplayMessage(Message* message, bool display)
 {
+	errno = 0;
+
 	if (SDL_LockMutex(l_message_mutex) != 0) {
 		fprintf(stderr, "Couldn't lock mutex\n");
 		ExitBreakout(EXIT_FAILURE);
 	}
-
 
 	if (display) {
 
@@ -48,14 +56,22 @@ void SetDisplayMessage(struct Message* message, bool display)
 
 			n_message_displayed++;
 
-			unsigned long long new_size = ((unsigned long long) n_message_displayed) * sizeof(struct Message *);
+			unsigned long long new_size = ((unsigned long long) n_message_displayed) * sizeof(Message *);
 
-			l_message_displayed = (struct Message*) realloc(l_message_displayed, new_size);
-			if (!l_message_displayed) {
-				SDL_Log("Erreur realloc (SetDisplayMessage)");
+			Message* ptr_tmp = (Message*) realloc(l_message_displayed, new_size);
+			if (!ptr_tmp) {
+
+				char error_string[94] = { '\0' };
+				strerror_s(error_string, 94, errno);
+				fprintf(stderr, "Error realloc : %s", error_string);
+
+				free(l_message_displayed);
+				l_message_displayed = NULL;
+
 				ExitBreakout(EXIT_FAILURE);
 			}
 
+			l_message_displayed = ptr_tmp;
 			*(l_message_displayed + n_message_displayed - 1) = message;
 		}
 	}
@@ -78,11 +94,17 @@ void SetDisplayMessage(struct Message* message, bool display)
 
 			if (n_message_displayed != 0) {
 
-				unsigned long long new_size = ((unsigned long long) n_message_displayed) * sizeof(struct Message *);
+				unsigned long long new_size = ((unsigned long long) n_message_displayed) * sizeof(Message *);
 
-				struct Message* ptr_tmp = (struct Message*) realloc(l_message_displayed, new_size);
-				if (!ptr_tmp) {
-					SDL_Log("Erreur realloc (SetDisplayMessage)");
+				Message* ptr_tmp = (Message*) realloc(l_message_displayed, new_size);
+				if(ptr_tmp == NULL){
+
+					char error_string[94] = { '\0' };
+					strerror_s(error_string, 94, errno);
+					fprintf(stderr, "Error realloc : %s", error_string);
+
+					free(l_message_displayed);
+					l_message_displayed = NULL;
 
 					ExitBreakout(EXIT_FAILURE);
 				}
@@ -95,7 +117,7 @@ void SetDisplayMessage(struct Message* message, bool display)
 	SDL_UnlockMutex(l_message_mutex);
 }
 
-bool MessageDisplayed(struct Message* message)
+bool MessageDisplayed(Message* message)
 {
 	if (SDL_LockMutex(l_message_mutex) != 0) {
 		fprintf(stderr, "Couldn't lock mutex\n");
@@ -104,7 +126,7 @@ bool MessageDisplayed(struct Message* message)
 
 	for (int i = 0; i < n_message_displayed; i++) {
 
-		struct Message *message_a = l_message_displayed[i];
+		Message *message_a = l_message_displayed[i];
 
 		if (SameMessage(message, message_a)) {
 
@@ -118,7 +140,7 @@ bool MessageDisplayed(struct Message* message)
 	return false;
 }
 
-bool SameMessage(struct Message* m1, struct Message* m2) {
+bool SameMessage(Message* m1, Message* m2) {
 
 	if (SDL_LockMutex(l_message_mutex) != 0) {
 		fprintf(stderr, "Couldn't lock mutex\n");
@@ -144,26 +166,54 @@ bool SameMessage(struct Message* m1, struct Message* m2) {
 	return r;
 }
 
-void AddImage(struct Message* message, struct MessageImage* m_image)
+void AddImage(Message* message, MessageImage* m_image)
 {
+	errno = 0;
 
-	message->n_image++;
+	if(SDL_LockMutex(message->l_message_image_mutex) != 0) {
+		fprintf(stderr, "Couldn't lock mutex\n");
+		ExitBreakout(EXIT_FAILURE);
+	}
 
-	unsigned long long new_size = message->n_image * sizeof(struct MessageImage*);
+	unsigned long long new_size = message->n_image * sizeof(MessageImage*);
 
-	struct MessageImage* ptr_tmp = (struct MessageImage*) realloc(message->l_message_image, new_size);
+	MessageImage* ptr_tmp = (MessageImage*)realloc(message->l_message_image, new_size);
 	if (!ptr_tmp) {
-		fprintf(stderr, "Error realloc \n");
+
+		char error_string[94] = { '\0' };
+		strerror_s(error_string, 94, errno);
+		fprintf(stderr, "Error realloc : %s", error_string);
+
+		free(message->l_message_image);
+		message->l_message_image = NULL;
 
 		ExitBreakout(EXIT_FAILURE);
 	}
 
 	message->l_message_image = ptr_tmp;
+
+	message->n_image++;
 	*(message->l_message_image + message->n_image - 1) = m_image;
 
+	SDL_UnlockMutex(message->l_message_image_mutex);
 }
 
-void DrawImages(SDL_Renderer* renderer, struct Message* message)
+void HideAllMessages()
+{
+	if (SDL_LockMutex(l_message_mutex) != 0) {
+		fprintf(stderr, "Couldn't lock mutex\n");
+		ExitBreakout(EXIT_FAILURE);
+	}
+
+	for (int i = 0; i < n_message_displayed; i++) {
+		Message* message = l_message_displayed[i];
+		SetDisplayMessage(message, false);
+	}
+
+	SDL_UnlockMutex(l_message_mutex);
+}
+
+void DrawImages(SDL_Renderer* renderer, Message* message)
 {
 	if (SDL_LockMutex(message->l_message_image_mutex) != 0) {
 		fprintf(stderr, "Couldn't lock mutex\n");
@@ -181,9 +231,20 @@ void DrawImages(SDL_Renderer* renderer, struct Message* message)
 	SDL_UnlockMutex(message->l_message_image_mutex);
 }
 
-void RemoveImage(struct Message* message, struct MessageImage* m_image) {
+void RemoveImage(Message* message, MessageImage* m_image) 
+{
+	errno = 0;
+
+	if (SDL_LockMutex(message->l_message_image_mutex) != 0) {
+		fprintf(stderr, "Couldn't lock mutex\n");
+		ExitBreakout(EXIT_FAILURE);
+	}
 
 	message->n_image--;
+	if (message->n_image == 0) {
+		free(message->l_message_image);
+		message->l_message_image = NULL;
+	}
 
 	bool shift = false;
 	for (int i = 0; i < message->n_image; i++) {
@@ -197,15 +258,23 @@ void RemoveImage(struct Message* message, struct MessageImage* m_image) {
 	}
 	
 	if (message->n_image != 0) {
-		unsigned long long new_size = message->n_image * sizeof(struct MessageImage*);
+		unsigned long long new_size = message->n_image * sizeof(MessageImage*);
 
-		struct MessageImage* ptr_tmp = realloc(message->l_message_image, new_size);
+		MessageImage* ptr_tmp = realloc(message->l_message_image, new_size);
 		if (!ptr_tmp) {
-			fprintf(stderr, "Error realloc \n");
+
+			char error_string[94] = { '\0' };
+			strerror_s(error_string, 94, errno);
+			fprintf(stderr, "Error realloc : %s", error_string);
+
+			free(message->l_message_image);
+			message->l_message_image = NULL;
 
 			ExitBreakout(EXIT_FAILURE);
 		}
 	}
+
+	SDL_UnlockMutex(message->l_message_image_mutex);
 }
 
 void InitMessages()
@@ -221,10 +290,12 @@ void InitMessages()
 void DestroyMessages()
 {
 	free(l_message_displayed);
+	l_message_displayed = NULL;
+
 	SDL_DestroyMutex(l_message_mutex);
 }
 
-void DrawMessage(SDL_Renderer* renderer, struct Message* message)
+void DrawMessage(SDL_Renderer* renderer, Message* message)
 {
 	if (SDL_LockMutex(l_message_mutex) != 0) {
 		fprintf(stderr, "Couldn't lock mutex\n");
@@ -307,7 +378,7 @@ void DrawMessages(SDL_Renderer* renderer)
 	SDL_UnlockMutex(l_message_mutex);
 }
 
-int MessageWidth(SDL_Renderer* renderer, struct Message* message) {
+int MessageWidth(SDL_Renderer* renderer, Message* message) {
 
 	if (SDL_LockMutex(l_message_mutex) != 0) {
 		fprintf(stderr, "Couldn't lock mutex\n");
@@ -357,7 +428,7 @@ int MessageWidth(SDL_Renderer* renderer, struct Message* message) {
 	return message_width;
 }
 
-int MessageHeight(SDL_Renderer* renderer, struct Message* message) {
+int MessageHeight(SDL_Renderer* renderer, Message* message) {
 
 	if (SDL_LockMutex(l_message_mutex) != 0) {
 		fprintf(stderr, "Couldn't lock mutex\n");

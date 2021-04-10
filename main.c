@@ -38,9 +38,7 @@ int main(int argv, char** args) {
 	}
 
 	CreateInterface();
-	CreateGame();
 
-	StartGameLoop();
 	StartEventLoop();
 
 	FreeBreakout();

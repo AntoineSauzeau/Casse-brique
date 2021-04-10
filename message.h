@@ -1,15 +1,17 @@
+#pragma once
+
 #include "SDL/SDL.h"
 #include "SDL/SDL_ttf.h"
-#include "SDL/SDL_image.h"
 
-#include <stdbool.h>
 #include <stdlib.h> 
-#include <string.h>
-#include <stdio.h>
+#include <stdbool.h>
 
-#include "colors.h"
+typedef struct {
+	SDL_Texture* texture;
+	SDL_Rect position;
+} MessageImage;
 
-struct Message {
+typedef struct {
 
 	char title[80];
 	char subtitle[80];
@@ -29,31 +31,28 @@ struct Message {
 
 	SDL_Point position;
 
-	struct MessageImage** l_message_image;
+	MessageImage** l_message_image;
 	SDL_mutex* l_message_image_mutex;
 	int n_image;
-};
-
-struct MessageImage{
-	SDL_Texture* texture;
-	SDL_Rect position;
-};
+} Message;
 
 void InitMessages();
 void DestroyMessages();
 
-void DrawMessage(SDL_Renderer* renderer, struct Message* message);
+void DrawMessage(SDL_Renderer* renderer, Message* message);
 void DrawMessages(SDL_Renderer* renderer);
 
-int MessageWidth(SDL_Renderer* renderer, struct Message* message);
-int MessageHeight(SDL_Renderer* renderer, struct Message* message);
+int MessageWidth(SDL_Renderer* renderer, Message* message);
+int MessageHeight(SDL_Renderer* renderer, Message* message);
 
-struct Message CreateMessage();
-void SetDisplayMessage(struct Message* message, bool displayed);
-bool MessageDisplayed(struct Message* message);
-bool SameMessage(struct Message* m1, struct Message* m2);
+Message CreateMessage();
+bool SameMessage(Message* m1, Message* m2);
 
-void DrawImages(SDL_Renderer* renderer, struct Message* message);
-void AddImage(struct Message* message, struct MessageImage* m_image);
-void RemoveImage(struct Message* message, struct MessageImage* m_image);
+void SetDisplayMessage(Message* message, bool displayed);
+bool MessageDisplayed(Message* message);
+void HideAllMessages();
+
+void DrawImages(SDL_Renderer* renderer, Message* message);
+void AddImage(Message* message, MessageImage* m_image);
+void RemoveImage(Message* message, MessageImage* m_image);
 
