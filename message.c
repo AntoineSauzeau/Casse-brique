@@ -7,12 +7,43 @@
 
 #include "colors.h"
 
+
 Message** l_message_displayed = NULL;
 SDL_mutex* l_message_mutex = NULL;
 int n_message_displayed = 0;
 
 
-Message CreateMessage()
+
+/*
+*	Prototypes.
+*/
+
+static int MessageWidth(SDL_Renderer* renderer, Message* message);
+static int MessageHeight(SDL_Renderer* renderer, Message* message);
+
+static void MSG_DrawImages(SDL_Renderer* renderer, Message* message);
+
+
+
+void MSG_InitModule()
+{
+	l_message_mutex = SDL_CreateMutex();
+	if (!l_message_mutex) {
+		fprintf(stderr, "Couldn't create mutex\n");
+
+		ExitBreakout(EXIT_FAILURE);
+	}
+}
+
+void MSG_FreeModule()
+{
+	free(l_message_displayed);
+	l_message_displayed = NULL;
+
+	SDL_DestroyMutex(l_message_mutex);
+}
+
+Message MSG_Create()
 {
 	Message message;
 	memset(message.title, '\0', 80);
@@ -41,8 +72,8 @@ Message CreateMessage()
 	return message;
 }
 
-void SetDisplayMessage(Message* message, bool display)
-{
+void MSG_Show(Message* message) {
+
 	errno = 0;
 
 	if (SDL_LockMutex(l_message_mutex) != 0) {
@@ -50,20 +81,64 @@ void SetDisplayMessage(Message* message, bool display)
 		ExitBreakout(EXIT_FAILURE);
 	}
 
-	if (display) {
+	if (!MSG_Displayed(message)) {
 
-		if (!MessageDisplayed(message)) {
+		n_message_displayed++;
 
-			n_message_displayed++;
+		unsigned long long new_size = ((unsigned long long) n_message_displayed) * sizeof(Message*);
 
-			unsigned long long new_size = ((unsigned long long) n_message_displayed) * sizeof(Message *);
+		Message* ptr_tmp = (Message*)realloc(l_message_displayed, new_size);
+		if (!ptr_tmp) {
 
-			Message* ptr_tmp = (Message*) realloc(l_message_displayed, new_size);
-			if (!ptr_tmp) {
+			ShowError("Erreur realloc : %s", errno);
 
-				char error_string[94] = { '\0' };
-				strerror_s(error_string, 94, errno);
-				fprintf(stderr, "Error realloc : %s", error_string);
+			free(l_message_displayed);
+			l_message_displayed = NULL;
+
+			ExitBreakout(EXIT_FAILURE);
+		}
+
+		l_message_displayed = ptr_tmp;
+		if (l_message_displayed != NULL) {
+			*(l_message_displayed + n_message_displayed - 1) = message;
+		}
+	}
+
+	SDL_UnlockMutex(l_message_mutex);
+}
+
+void MSG_Hide(Message* message) {
+
+	errno = 0;
+
+	if (SDL_LockMutex(l_message_mutex) != 0) {
+		fprintf(stderr, "Couldn't lock mutex\n");
+		ExitBreakout(EXIT_FAILURE);
+	}
+
+	if (MSG_Displayed(message)) {
+
+		bool shift = false;
+		for (int i = 0; i < n_message_displayed; i++) {
+
+			if (MSG_Same(message, l_message_displayed[i])) {
+				shift = true;
+			}
+			else if (shift) {
+				*(l_message_displayed + i - 1) = *(l_message_displayed + i);
+			}
+		}
+
+		n_message_displayed--;
+
+		if (n_message_displayed != 0) {
+
+			unsigned long long new_size = ((unsigned long long) n_message_displayed) * sizeof(Message*);
+
+			Message* ptr_tmp = (Message*)realloc(l_message_displayed, new_size);
+			if (ptr_tmp == NULL) {
+
+				ShowError("Erreur realloc : %s", errno);
 
 				free(l_message_displayed);
 				l_message_displayed = NULL;
@@ -72,52 +147,13 @@ void SetDisplayMessage(Message* message, bool display)
 			}
 
 			l_message_displayed = ptr_tmp;
-			*(l_message_displayed + n_message_displayed - 1) = message;
-		}
-	}
-	else {
-
-		if (MessageDisplayed(message)) {
-
-			bool shift = false;
-			for (int i = 0; i < n_message_displayed; i++) {
-
-				if (SameMessage(message, l_message_displayed[i])) {
-					shift = true;
-				}
-				else if (shift) {
-					*(l_message_displayed + i - 1) = *(l_message_displayed + i);
-				}
-			}
-
-			n_message_displayed--;
-
-			if (n_message_displayed != 0) {
-
-				unsigned long long new_size = ((unsigned long long) n_message_displayed) * sizeof(Message *);
-
-				Message* ptr_tmp = (Message*) realloc(l_message_displayed, new_size);
-				if(ptr_tmp == NULL){
-
-					char error_string[94] = { '\0' };
-					strerror_s(error_string, 94, errno);
-					fprintf(stderr, "Error realloc : %s", error_string);
-
-					free(l_message_displayed);
-					l_message_displayed = NULL;
-
-					ExitBreakout(EXIT_FAILURE);
-				}
-
-				l_message_displayed = ptr_tmp;
-			}
 		}
 	}
 
 	SDL_UnlockMutex(l_message_mutex);
 }
 
-bool MessageDisplayed(Message* message)
+bool MSG_Displayed(Message* message)
 {
 	if (SDL_LockMutex(l_message_mutex) != 0) {
 		fprintf(stderr, "Couldn't lock mutex\n");
@@ -128,7 +164,7 @@ bool MessageDisplayed(Message* message)
 
 		Message *message_a = l_message_displayed[i];
 
-		if (SameMessage(message, message_a)) {
+		if (MSG_Same(message, message_a)) {
 
 			SDL_UnlockMutex(l_message_mutex);
 			return true;
@@ -140,7 +176,7 @@ bool MessageDisplayed(Message* message)
 	return false;
 }
 
-bool SameMessage(Message* m1, Message* m2) {
+bool MSG_Same(Message* m1, Message* m2) {
 
 	if (SDL_LockMutex(l_message_mutex) != 0) {
 		fprintf(stderr, "Couldn't lock mutex\n");
@@ -166,7 +202,7 @@ bool SameMessage(Message* m1, Message* m2) {
 	return r;
 }
 
-void AddImage(Message* message, MessageImage* m_image)
+void MSG_AddImage(Message* message, MessageImage* m_image)
 {
 	errno = 0;
 
@@ -180,9 +216,7 @@ void AddImage(Message* message, MessageImage* m_image)
 	MessageImage* ptr_tmp = (MessageImage*)realloc(message->l_message_image, new_size);
 	if (!ptr_tmp) {
 
-		char error_string[94] = { '\0' };
-		strerror_s(error_string, 94, errno);
-		fprintf(stderr, "Error realloc : %s", error_string);
+		ShowError("Erreur realloc : %s", errno);
 
 		free(message->l_message_image);
 		message->l_message_image = NULL;
@@ -193,12 +227,14 @@ void AddImage(Message* message, MessageImage* m_image)
 	message->l_message_image = ptr_tmp;
 
 	message->n_image++;
-	*(message->l_message_image + message->n_image - 1) = m_image;
+	if (message->l_message_image != NULL) {
+		*(message->l_message_image + message->n_image - 1) = m_image;
+	}
 
 	SDL_UnlockMutex(message->l_message_image_mutex);
 }
 
-void HideAllMessages()
+void MSG_HideAll()
 {
 	if (SDL_LockMutex(l_message_mutex) != 0) {
 		fprintf(stderr, "Couldn't lock mutex\n");
@@ -207,13 +243,13 @@ void HideAllMessages()
 
 	for (int i = 0; i < n_message_displayed; i++) {
 		Message* message = l_message_displayed[i];
-		SetDisplayMessage(message, false);
+		MSG_Hide(message);
 	}
 
 	SDL_UnlockMutex(l_message_mutex);
 }
 
-void DrawImages(SDL_Renderer* renderer, Message* message)
+void MSG_DrawImages(SDL_Renderer* renderer, Message* message)
 {
 	if (SDL_LockMutex(message->l_message_image_mutex) != 0) {
 		fprintf(stderr, "Couldn't lock mutex\n");
@@ -231,7 +267,7 @@ void DrawImages(SDL_Renderer* renderer, Message* message)
 	SDL_UnlockMutex(message->l_message_image_mutex);
 }
 
-void RemoveImage(Message* message, MessageImage* m_image) 
+void MSG_RemoveImage(Message* message, MessageImage* m_image)
 {
 	errno = 0;
 
@@ -263,9 +299,7 @@ void RemoveImage(Message* message, MessageImage* m_image)
 		MessageImage* ptr_tmp = realloc(message->l_message_image, new_size);
 		if (!ptr_tmp) {
 
-			char error_string[94] = { '\0' };
-			strerror_s(error_string, 94, errno);
-			fprintf(stderr, "Error realloc : %s", error_string);
+			ShowError("Erreur realloc : %s", errno);
 
 			free(message->l_message_image);
 			message->l_message_image = NULL;
@@ -277,25 +311,7 @@ void RemoveImage(Message* message, MessageImage* m_image)
 	SDL_UnlockMutex(message->l_message_image_mutex);
 }
 
-void InitMessages()
-{
-	l_message_mutex = SDL_CreateMutex();
-	if (!l_message_mutex) {
-		fprintf(stderr, "Couldn't create mutex\n");
-
-		ExitBreakout(EXIT_FAILURE);
-	}
-}
-
-void DestroyMessages()
-{
-	free(l_message_displayed);
-	l_message_displayed = NULL;
-
-	SDL_DestroyMutex(l_message_mutex);
-}
-
-void DrawMessage(SDL_Renderer* renderer, Message* message)
+void MSG_Draw(SDL_Renderer* renderer, Message* message)
 {
 	if (SDL_LockMutex(l_message_mutex) != 0) {
 		fprintf(stderr, "Couldn't lock mutex\n");
@@ -358,12 +374,12 @@ void DrawMessage(SDL_Renderer* renderer, Message* message)
 		}
 	}
 
-	DrawImages(renderer, message);
+	MSG_DrawImages(renderer, message);
 
 	SDL_UnlockMutex(l_message_mutex);
 }
 
-void DrawMessages(SDL_Renderer* renderer)
+void MSG_DrawAll(SDL_Renderer* renderer)
 {
 	if (SDL_LockMutex(l_message_mutex) != 0) {
 		fprintf(stderr, "Couldn't lock mutex\n");
@@ -372,7 +388,7 @@ void DrawMessages(SDL_Renderer* renderer)
 	}
 
 	for (int i = 0; i < n_message_displayed; i++) {
-		DrawMessage(renderer, l_message_displayed[i]);
+		MSG_Draw(renderer, l_message_displayed[i]);
 	}
 
 	SDL_UnlockMutex(l_message_mutex);

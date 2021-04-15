@@ -32,6 +32,24 @@ int tile_map_l2[N_BRICK_LINE][N_BRICK_COLUMN] = {
 	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 };
 
+#define BAR_MOVE_VALUE 35
+#define BALL_MOVE_BASE_VALUE 7
+
+#define BAR_PART1_RATIO 0.4
+#define BAR_PART2_RATIO 0.5
+#define BAR_PART3_RATIO 0.1
+
+#define BALL_SPAWN_X (INTERFACE_WIDTH / 2)
+#define BALL_SPAWN_Y (INTERFACE_HEIGHT / 2 + 45)
+
+enum BrickIntersection { NONE_INTERSECTION, LEFT_OR_RIGHT, TOP_OR_BOTTOM, CORNER_TOP_RIGHT, CORNER_TOP_LEFT, CORNER_BOTTOM_RIGHT, CORNER_BOTTOM_LEFT, CORNER };
+
+
+/*
+*	Prototypes.
+*/
+
+
 int** tile_map = NULL;
 
 int bar_width = 175;
@@ -41,7 +59,7 @@ int bar_y = INTERFACE_HEIGHT - 80;
 
 int void_y = INTERFACE_HEIGHT - 65;
 
-struct Ball* l_ball = NULL;
+Ball* l_ball = NULL;
 int n_ball = 0;
 
 enum Bonus bonus = NONE_BONUS;
@@ -65,7 +83,7 @@ void CreateGame() {
 
 	SetTileMap(1);
 
-	struct Ball* ball = AddBall(INTERFACE_WIDTH / 2, INTERFACE_HEIGHT / 2 + 45);
+	Ball* ball = AddBall(INTERFACE_WIDTH / 2, INTERFACE_HEIGHT / 2 + 45);
 	StartBall(ball, -1);
 
 	mutex_time = SDL_CreateMutex();
@@ -101,24 +119,28 @@ void ResetGame()
 
 	DestroyBalls();
 
-	struct Ball* ball = AddBall(BALL_SPAWN_X, BALL_SPAWN_Y);
+	Ball* ball = AddBall(BALL_SPAWN_X, BALL_SPAWN_Y);
 	StartBall(ball, -1);
 }
 
 int **Alloc2DimIntArray(int L, int C)
 {
+	errno = 0;
+
 	int** array = NULL;
 	array = malloc(L * sizeof(int*));
 
 	if (array == NULL) {
-		printf("Error malloc");
+		ShowError("Error malloc : %s", errno);
+
+		return NULL;
 	}
 
 	for (int i = 0; i < L; i++) {
 		*(array + i) = (int *) malloc(C * sizeof(int));
 
 		if (array[i] == NULL) {
-			printf("Error malloc");
+			ShowError("Error malloc : %s", errno);
 		}
 	}
 
@@ -219,15 +241,15 @@ void SetBarY(int _bar_y) {
 	bar_y = _bar_y;
 }
 
-struct Ball* AddBall(double x, double y) {
+Ball* AddBall(double x, double y) {
 
 	errno = 0;
 
-	int ball_array_new_size = (n_ball + 1) * sizeof(struct Ball);
+	int ball_array_new_size = (n_ball + 1) * sizeof(Ball);
 
 	if (n_ball != 0) {
-		struct Ball* l_ball_tmp = NULL;
-		l_ball_tmp = (struct Ball*)realloc(l_ball, ball_array_new_size);
+		Ball* l_ball_tmp = NULL;
+		l_ball_tmp = (Ball*)realloc(l_ball, ball_array_new_size);
 		if (l_ball_tmp == NULL) {
 
 			char error_string[94] = { '\0' };
@@ -245,7 +267,7 @@ struct Ball* AddBall(double x, double y) {
 		l_ball = malloc(ball_array_new_size);
 	}
 
-	struct Ball ball;
+	Ball ball;
 
 	ball.x = x;
 	ball.y = y;
@@ -258,8 +280,10 @@ struct Ball* AddBall(double x, double y) {
 	ball.build_in_bricks = false;
 
 	n_ball++;
-	struct Ball* ball_ptr = l_ball + n_ball - 1;
-	*ball_ptr = ball;
+	Ball* ball_ptr = l_ball + n_ball - 1;
+	if (ball_ptr != NULL) {
+		*ball_ptr = ball;
+	}
 
 	return ball_ptr;
 
@@ -278,15 +302,15 @@ void RemoveBall(int index) {
 
 	n_ball--;
 
-	int ball_array_new_size = (n_ball) * sizeof(struct Ball);
+	int ball_array_new_size = (n_ball) * sizeof(Ball);
 	if (ball_array_new_size == 0) {
 
 		free(l_ball);
 		return;
 	}
 
-	struct Ball* l_ball_tmp = NULL;
-	l_ball_tmp = (struct Ball*)realloc(l_ball, ball_array_new_size);
+	Ball* l_ball_tmp = NULL;
+	l_ball_tmp = (Ball*)realloc(l_ball, ball_array_new_size);
 	if (l_ball_tmp == NULL) {
 
 		char error_string[94] = { '\0' };
@@ -301,7 +325,7 @@ void RemoveBall(int index) {
 	l_ball = l_ball_tmp;
 }
 
-void StartBall(struct Ball* ball, double direction)
+void StartBall(Ball* ball, double direction)
 
 {
 	if (direction == -1) {
@@ -319,8 +343,8 @@ void StartBall(struct Ball* ball, double direction)
 	ball->speed = 1.0;
 }
 
-struct Ball GetBall(int index) {
-	return *(l_ball + index);
+Ball* GetBall(int index) {
+	return l_ball + index;
 }
 
 int GetNLife()
@@ -348,7 +372,7 @@ void EndBonus()
 
 		for (int i = 0; i < n_ball; i++) {
 
-			struct Ball* ball = l_ball + i;
+			Ball* ball = l_ball + i;
 
 			if (ball->speed_to_restore != -1) {
 				ball->speed = ball->speed_to_restore;
@@ -376,7 +400,7 @@ void SetBonus(enum Bonus p_bonus)
 		
 		for (int i = 0; i < n_ball; i++) {
 
-			struct Ball* ball = l_ball + i;
+			Ball* ball = l_ball + i;
 			ball->speed_to_restore = ball->speed;
 			ball->speed = ball->speed * 3;
 		}
@@ -512,7 +536,7 @@ int GetNBall() {
 	return n_ball;
 }
 
-void UpdateBallMovement(struct Ball* ball) {
+void UpdateBallMovement(Ball* ball) {
 
 	double ball_x = ball->x;
 	double ball_y = ball->y;
@@ -541,7 +565,7 @@ void UpdateBallMovement(struct Ball* ball) {
 	}
 
 
-	struct Circle ball_circle;
+	Circle ball_circle;
 	ball_circle.x = ball->x;
 	ball_circle.y = ball->y;
 	ball_circle.radius = ball->radius;
@@ -825,13 +849,13 @@ void NextLevel()
 	SetTileMap(level_index);
 
 	DestroyBalls();
-	struct Ball* ball = AddBall(BALL_SPAWN_X, BALL_SPAWN_Y);
+	Ball* ball = AddBall(BALL_SPAWN_X, BALL_SPAWN_Y);
 	StartBall(ball, -1);
 
 	ShowNextlevelMessage(level_index);
 }
 
-enum BrickIntersection CircleIntersectRect(struct Circle circle, struct SDL_Rect rect)
+enum BrickIntersection CircleIntersectRect(Circle circle, struct SDL_Rect rect)
 {
 
 	double distance_x = fabs(circle.x - rect.x);
@@ -881,7 +905,7 @@ enum BrickIntersection CircleIntersectRect(struct Circle circle, struct SDL_Rect
 void UpdateGame() {
 
 	for (int i = 0; i < n_ball; i++) {
-		struct Ball *ball = l_ball+i;
+		Ball *ball = l_ball+i;
 
 		if (game_status == IN_PROGRESS) {
 			UpdateBallMovement(ball);
@@ -893,7 +917,7 @@ void UpdateGame() {
 				printf("Vie en moins");
 
 				if (n_life >= 1) {
-					struct Ball* ball = AddBall(INTERFACE_WIDTH / 2, INTERFACE_HEIGHT / 2);
+					Ball* ball = AddBall(INTERFACE_WIDTH / 2, INTERFACE_HEIGHT / 2);
 					StartBall(ball, -1);
 				}
 				else {
@@ -912,29 +936,29 @@ void UpdateGame() {
 	}
 
 	if (add_ball) {
-		struct Ball* ball = AddBall(BALL_SPAWN_X, BALL_SPAWN_Y);
+		Ball* ball = AddBall(BALL_SPAWN_X, BALL_SPAWN_Y);
 		StartBall(ball, -1);
 
 		add_ball = false;
 	}
 }
 
-void GameEvent(SDL_Event event)
+void GameEvent(SDL_Event* event)
 {
 
-	switch (event.type) {
+	switch (event->type) {
 	case SDL_KEYDOWN:
 	{
 
 		if (game_status == NOT_STARTED) {
 
-			if (event.key.keysym.sym == SDLK_SPACE) {
+			if (event->key.keysym.sym == SDLK_SPACE) {
 				StartGame();
 			}
 		}
 		else if (game_status == FINISHED) {
 
-			if (event.key.keysym.sym == SDLK_SPACE) {
+			if (event->key.keysym.sym == SDLK_SPACE) {
 
 				HideGameoverMessage();
 
@@ -944,7 +968,7 @@ void GameEvent(SDL_Event event)
 		}
 		else if (game_status == IN_PROGRESS) {
 
-			if (event.key.keysym.sym == SDLK_RIGHT) {
+			if (event->key.keysym.sym == SDLK_RIGHT) {
 				if ((bar_x + bar_width / 2 + BAR_MOVE_VALUE) < INTERFACE_WIDTH) {
 					bar_x += BAR_MOVE_VALUE;
 				}
@@ -952,7 +976,7 @@ void GameEvent(SDL_Event event)
 					bar_x = INTERFACE_WIDTH - bar_width / 2 - 1;
 				}
 			}
-			else if (event.key.keysym.sym == SDLK_LEFT) {
+			else if (event->key.keysym.sym == SDLK_LEFT) {
 				if (bar_x - bar_width / 2 - BAR_MOVE_VALUE >= 0) {
 					bar_x -= BAR_MOVE_VALUE;
 				}
@@ -960,13 +984,13 @@ void GameEvent(SDL_Event event)
 					bar_x = bar_width / 2;
 				}
 			}
-			else if (event.key.keysym.sym == SDLK_p) {
+			else if (event->key.keysym.sym == SDLK_p) {
 				StartPause();
 			}
 		}
 		else if (game_status == PAUSED) {
 
-			if (event.key.keysym.sym == SDLK_p) {
+			if (event->key.keysym.sym == SDLK_p) {
 				StopPause();
 			}
 		}

@@ -9,19 +9,9 @@
 #define BRICK_WIDTH 45
 #define BRICK_HEIGHT 30
 
-#define BAR_MOVE_VALUE 35
-#define BALL_MOVE_BASE_VALUE 7
-
-#define BAR_PART1_RATIO 0.4
-#define BAR_PART2_RATIO 0.5
-#define BAR_PART3_RATIO 0.1
-
-#define BALL_SPAWN_X (INTERFACE_WIDTH / 2)
-#define BALL_SPAWN_Y (INTERFACE_HEIGHT / 2 + 45)
-
 enum GameStatus { NOT_STARTED = 0, IN_PROGRESS = 1, PAUSED = 2, FINISHED = 3 };
 
-struct Ball {
+typedef struct {
 	double x;
 	double y;
 	double speed;
@@ -34,18 +24,15 @@ struct Ball {
 
 	//Bonus
 	double speed_to_restore;
-};
+} Ball;
 
-struct Circle {
+typedef struct {
 	double x;
 	double y;
 	double radius;
-};
+} Circle;
 
-enum Bonus {NONE_BONUS, SPEED3};
-
-enum BrickIntersection { NONE_INTERSECTION, LEFT_OR_RIGHT, TOP_OR_BOTTOM, CORNER_TOP_RIGHT, CORNER_TOP_LEFT, CORNER_BOTTOM_RIGHT, CORNER_BOTTOM_LEFT, CORNER };
-
+enum Bonus { NONE_BONUS, SPEED3 };
 
 void CreateGame();
 void DestroyGame();
@@ -73,12 +60,12 @@ int GetBarY();
 void SetBarX(int _bar_x);
 void SetBarY(int _bar_y);
 
-struct Ball* AddBall(double x, double y);
+Ball* AddBall(double x, double y);
 void RemoveBall(int index);
-void StartBall(struct Ball* ball, double direction);
+void StartBall(Ball* ball, double direction);
 
 int GetNBall();
-struct Ball GetBall(int index);
+Ball* GetBall(int index);
 
 int GetNLife();
 int GetScore();
@@ -98,10 +85,10 @@ void StartPause();
 void StopPause();
 
 void UpdateGame();
-void UpdateBallMovement(struct Ball* ball);
+void UpdateBallMovement(Ball* ball);
 
 void NextLevel();
 
-enum BrickIntersection CircleIntersectRect(struct Circle, struct SDL_Rect);
+enum BrickIntersection CircleIntersectRect(Circle, struct SDL_Rect);
 
-void GameEvent(SDL_Event event);
+void GameEvent(SDL_Event* event);

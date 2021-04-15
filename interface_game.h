@@ -2,11 +2,13 @@
 
 #include "SDL/SDL.h"
 
+#define FPS 120
+
 void CreateGameInterface(SDL_Renderer* renderer);
 void DestroyGameInterface();
 
-void StartGameLoop();
-void DrawGameInterface();
+void UpdateGameInterface();
+void GameInterfaceEvent(SDL_Event* event);
 
 /* Messages */
 void ShowStartMessage();

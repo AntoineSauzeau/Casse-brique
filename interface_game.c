@@ -14,8 +14,6 @@
 
 static SDL_Renderer* renderer = NULL;
 
-static SDL_Thread* display_thread = NULL;
-
 static TTF_Font* font_roboto_35 = NULL;
 static TTF_Font* font_roboto_25 = NULL;
 static TTF_Font* font_roboto_18 = NULL;
@@ -56,6 +54,7 @@ static void FreeImages();
 static void CreateMessages();
 
 static void GameLoop();
+static void DrawGameInterface();
 
 
 
@@ -66,15 +65,12 @@ void CreateGameInterface(SDL_Renderer* _renderer) {
 	LoadImages();
 	LoadFonts();
 
-	InitMessages();
 	CreateMessages();
 
 	CreateGame();
 }
 
 void DestroyGameInterface() {
-
-	DestroyMessages();
 
 	FreeImages();
 	FreeFonts();
@@ -105,7 +101,9 @@ void LoadFonts() {
 }
 
 void FreeFonts() {
+	TTF_CloseFont(font_roboto_35);
 	TTF_CloseFont(font_roboto_25);
+	TTF_CloseFont(font_roboto_18);
 }
 
 void LoadImages()
@@ -124,7 +122,7 @@ void LoadImages()
 
 	image_rocket_texture = SDL_CreateTextureFromSurface(renderer, image_rocket_surface);
 
-	image_pause_surface = IMG_Load("pause_2.png");
+	image_pause_surface = IMG_Load("pause.png");
 	if (!image_pause_surface) {
 		SDL_Log("Error IMG_Load : %s", IMG_GetError());
 	}
@@ -134,18 +132,12 @@ void LoadImages()
 
 void FreeImages() {
 	SDL_FreeSurface(image_hearth_surface);
+	SDL_FreeSurface(image_pause_surface);
+	SDL_FreeSurface(image_rocket_surface);
+
 	SDL_DestroyTexture(image_hearth_texture);
-}
-
-void StartGameLoop() {
-
-	display_thread = SDL_CreateThread(GameLoop, "DisplayThread", NULL);
-	if (display_thread == NULL) {
-		printf("Erreur lors du lancement du thread d'affichage");
-		
-		ExitBreakout(EXIT_FAILURE);
-	}
-
+	SDL_DestroyTexture(image_pause_texture);
+	SDL_DestroyTexture(image_rocket_texture);
 }
 
 void GameLoop() {
@@ -243,8 +235,8 @@ void DrawGameInterface() {
 	//DRAW BALL
 	int n_ball = GetNBall();
 	for (int i = 0; i < n_ball; i++) {
-		struct Ball ball = GetBall(i);
-		SDL_RenderFillCircle(renderer, ball.x, ball.y, ball.radius);
+		Ball* ball = GetBall(i);
+		SDL_RenderFillCircle(renderer, ball->x, ball->y, ball->radius);
 	}
 
 	SDL_SetRenderDrawColor(renderer, WHITE.r, WHITE.g, WHITE.b, WHITE.a);
@@ -416,9 +408,25 @@ void DrawGameInterface() {
 		SDL_Log("Error TTF_RenderText_Blended : %s", TTF_GetError());
 	}
 
-	DrawMessages(renderer);
+	MSG_DrawAll(renderer);
 	SDL_RenderPresent(renderer);
 
+}
+
+void UpdateGameInterface()
+{
+	UpdateGame();
+	DrawGameInterface();
+}
+
+void GameInterfaceEvent(SDL_Event* event)
+{
+
+	if (event->key.keysym.sym == SDLK_ESCAPE) {
+		SetInterfacePage(1);
+	}
+
+	GameEvent(event);
 }
 
 int SDL_RenderFillCircle(SDL_Renderer* renderer, int x, int y, int radius) {
@@ -467,13 +475,13 @@ int SDL_RenderFillCircle(SDL_Renderer* renderer, int x, int y, int radius) {
 
 void CreateMessages()
 {
-	message_start = CreateMessage();
+	message_start = MSG_Create();
 	strcpy_s(message_start.title, 80, "Veuillez presser la touche espace pour commencer ! ");
 	message_start.font_title = font_roboto_25;
 	message_start.position.x = INTERFACE_WIDTH / 2;
 	message_start.position.y = INTERFACE_HEIGHT / 2 - 60;
 
-	message_speed3 = CreateMessage();
+	message_speed3 = MSG_Create();
 	strcpy_s(message_speed3.title, 80, "Bonus : Vitesse multiplié par 3 !");
 	strcpy_s(message_speed3.subtitle, 80, "Durée : 3 secondes");
 	message_speed3.font_title = font_roboto_35;
@@ -488,9 +496,9 @@ void CreateMessages()
 	m_image_rocket.position.h = image_rocket_surface->h;
 	m_image_rocket.texture = image_rocket_texture;
 
-	AddImage(&message_speed3, &m_image_rocket);
+	MSG_AddImage(&message_speed3, &m_image_rocket);
 
-	message_gameover = CreateMessage();
+	message_gameover = MSG_Create();
 	strcpy_s(message_gameover.title, 80, "Game over");
 	strcpy_s(message_gameover.subtitle, 80, "Presser la touche espace pour rejouer...");
 	message_gameover.font_title = font_roboto_35;
@@ -499,7 +507,7 @@ void CreateMessages()
 	message_gameover.position.y = INTERFACE_HEIGHT / 2 - 60;
 	message_gameover.space_btw_titles = 55;
 
-	message_nextlevel = CreateMessage();
+	message_nextlevel = MSG_Create();
 	strcpy_s(message_nextlevel.title, 80, "Niveau suivant !");
 	message_nextlevel.font_title = font_roboto_35;
 	message_nextlevel.font_subtitle = font_roboto_25;
@@ -507,7 +515,7 @@ void CreateMessages()
 	message_nextlevel.position.y = INTERFACE_HEIGHT / 2 - 60;
 	message_nextlevel.space_btw_titles = 55;
 
-	message_newball = CreateMessage();
+	message_newball = MSG_Create();
 	strcpy_s(message_newball.title, 80, "Bonus : Nouvelle balle !");
 	strcpy_s(message_newball.subtitle, 80, "Durée : infinie");
 	message_newball.font_title = font_roboto_35;
@@ -516,7 +524,7 @@ void CreateMessages()
 	message_newball.position.y = INTERFACE_HEIGHT / 2 - 60;
 	message_newball.space_btw_titles = 55;
 
-	message_pause = CreateMessage();
+	message_pause = MSG_Create();
 	strcpy_s(message_pause.title, 80, "Le jeu est en pause !");
 	strcpy_s(message_pause.subtitle, 80, "Presser la touche p pour reprendre");
 	message_pause.font_title = font_roboto_35;
@@ -531,35 +539,35 @@ void CreateMessages()
 	m_image_pause.position.h = image_pause_surface->h;
 	m_image_pause.texture = image_pause_texture;
 
-	AddImage(&message_pause, &m_image_pause);
+	MSG_AddImage(&message_pause, &m_image_pause);
 }
 
 void ShowStartMessage()
 {
-	SetDisplayMessage(&message_start, true);
+	MSG_Show(&message_start);
 }
 
 void HideStartMessage() {
-	SetDisplayMessage(&message_start, false);
+	MSG_Hide(&message_start);
 }
 
 void ShowSpeed3Message() {
-	SetDisplayMessage(&message_speed3, true);
+	MSG_Show(&message_speed3);
 }
 
 void HideSpeed3Message() {
-	SetDisplayMessage(&message_speed3, false);
+	MSG_Hide(&message_speed3);
 }
 
 void ShowGameoverMessage()
 {
-	HideAllMessages();
-	SetDisplayMessage(&message_gameover, true);
+	MSG_HideAll();
+	MSG_Show(&message_gameover);
 }
 
 void HideGameoverMessage()
 {
-	SetDisplayMessage(&message_gameover, false);
+	MSG_Hide(&message_gameover);
 }
 
 void ShowNextlevelMessage(int level)
@@ -572,36 +580,36 @@ void ShowNextlevelMessage(int level)
 	strcpy_s(message_nextlevel.subtitle, 80, "Tu passes au niveau ");
 	strcat_s(message_nextlevel.subtitle, 80, level_string);
 
-	SetDisplayMessage(&message_nextlevel, true);
+	MSG_Show(&message_nextlevel);
 	timer_message_nextlevel = SDL_AddTimer(3000, HideNextlevelMessage, NULL);
 }
 
 void HideNextlevelMessage()
 {
-	SetDisplayMessage(&message_nextlevel, false);
+	MSG_Hide(&message_nextlevel);
 	SDL_RemoveTimer(timer_message_nextlevel);
 }
 
 void ShowNewballMessage()
 {
-	SetDisplayMessage(&message_newball, true);
+	MSG_Show(&message_newball);
 	timer_message_newball = SDL_AddTimer(3000, HideNewballMessage, NULL);
 }
 
 void HideNewballMessage()
 {
-	SetDisplayMessage(&message_newball, false);
+	MSG_Hide(&message_newball);
 	SDL_RemoveTimer(timer_message_newball);
 }
 
 void ShowPauseMessage()
 {
-	SetDisplayMessage(&message_pause, true);
+	MSG_Show(&message_pause);
 }
 
 void HidePauseMessage()
 {
-	SetDisplayMessage(&message_pause, false);
+	MSG_Hide(&message_pause);
 }
 
 

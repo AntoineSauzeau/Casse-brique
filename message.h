@@ -36,23 +36,21 @@ typedef struct {
 	int n_image;
 } Message;
 
-void InitMessages();
-void DestroyMessages();
+void MSG_InitModule();
+void MSG_FreeModule();
 
-void DrawMessage(SDL_Renderer* renderer, Message* message);
-void DrawMessages(SDL_Renderer* renderer);
+void MSG_Draw(SDL_Renderer* renderer, Message* message);
+void MSG_DrawAll(SDL_Renderer* renderer);
 
-int MessageWidth(SDL_Renderer* renderer, Message* message);
-int MessageHeight(SDL_Renderer* renderer, Message* message);
+Message MSG_Create();
+bool MSG_Same(Message* m1, Message* m2);
 
-Message CreateMessage();
-bool SameMessage(Message* m1, Message* m2);
+bool MSG_Displayed(Message* message);
+void MSG_HideAll();
 
-void SetDisplayMessage(Message* message, bool displayed);
-bool MessageDisplayed(Message* message);
-void HideAllMessages();
+void MSG_Show(Message* message);
+void MSG_Hide(Message* message);
 
-void DrawImages(SDL_Renderer* renderer, Message* message);
-void AddImage(Message* message, MessageImage* m_image);
-void RemoveImage(Message* message, MessageImage* m_image);
+void MSG_AddImage(Message* message, MessageImage* m_image);
+void MSG_RemoveImage(Message* message, MessageImage* m_image);
 

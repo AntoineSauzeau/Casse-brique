@@ -10,7 +10,8 @@
 
 
 void FreeBreakout();
-extern void ExitBreakout(int);
+void ExitBreakout(int);
+void ShowError(char* format, int code);
 
 void FreeBreakout() {
 	DestroyInterface();
@@ -21,6 +22,12 @@ void FreeBreakout() {
 void ExitBreakout(int code) {
 	FreeBreakout();
 	exit(code);
+}
+
+void ShowError(char* format, int code) {
+	char error_string[94] = { '\0' };
+	strerror_s(error_string, 94, errno);
+	fprintf(stderr, format, error_string);
 }
 
 int main(int argv, char** args) {
@@ -39,6 +46,7 @@ int main(int argv, char** args) {
 
 	CreateInterface();
 
+	StartUpdateLoop();
 	StartEventLoop();
 
 	FreeBreakout();
