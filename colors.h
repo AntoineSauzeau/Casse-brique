@@ -5,6 +5,7 @@
 const static SDL_Color RED = { 235, 77, 75, 1 };
 const static SDL_Color GREY = { 46, 40, 42 };
 const static SDL_Color GREEN_1 = { 46, 204, 113 }; //EMERALD
+const static SDL_Color GREEN_2 = { 39, 174, 96, 1.0 }; //NEPHRITIS
 const static SDL_Color BLACK = { 0, 0, 0 };
 const static SDL_Color BLUE_1 = { 52, 152, 219 };
 const static SDL_Color WHITE = { 255, 255, 255 };

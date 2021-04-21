@@ -11,6 +11,7 @@
 #include "interface.h"
 #include "colors.h"
 #include "message.h"
+#include "shape.h"
 
 static SDL_Renderer* renderer = NULL;
 
@@ -28,6 +29,7 @@ static SDL_Surface* image_pause_surface = NULL;
 static SDL_Texture* image_pause_texture = NULL;
 
 static Message message_start;
+static Message message_speed2;
 static Message message_speed3;
 static Message message_gameover;
 static Message message_nextlevel;
@@ -39,6 +41,8 @@ static MessageImage m_image_pause;
 
 static SDL_TimerID timer_message_nextlevel;
 static SDL_TimerID timer_message_newball;
+static SDL_TimerID timer_message_speed2;
+static SDL_TimerID timer_message_speed3;
 
 
 /* 
@@ -52,6 +56,7 @@ static void LoadImages();
 static void FreeImages();
 
 static void CreateMessages();
+static void HideBonusMessages();
 
 static void GameLoop();
 static void DrawGameInterface();
@@ -108,21 +113,21 @@ void FreeFonts() {
 
 void LoadImages()
 {
-	image_hearth_surface = IMG_Load("hearth.png");
+	image_hearth_surface = IMG_Load("Images/hearth.png");
 	if (!image_hearth_surface) {
 		SDL_Log("Error IMG_Load : %s", IMG_GetError());
 	}
 
 	image_hearth_texture = SDL_CreateTextureFromSurface(renderer, image_hearth_surface);
 
-	image_rocket_surface = IMG_Load("rocket.png");
+	image_rocket_surface = IMG_Load("Images/rocket.png");
 	if (!image_rocket_surface) {
 		SDL_Log("Error IMG_Load : %s", IMG_GetError());
 	}
 
 	image_rocket_texture = SDL_CreateTextureFromSurface(renderer, image_rocket_surface);
 
-	image_pause_surface = IMG_Load("pause.png");
+	image_pause_surface = IMG_Load("Images/pause.png");
 	if (!image_pause_surface) {
 		SDL_Log("Error IMG_Load : %s", IMG_GetError());
 	}
@@ -207,6 +212,9 @@ void DrawGameInterface() {
 				}
 				else if (case_value == 4) {
 					brick_color = ORANGE;
+				}
+				else if (case_value == 5) {
+					brick_color = GREEN_2;
 				}
 
 				SDL_SetRenderDrawColor(renderer, brick_color.r, brick_color.g, brick_color.b, brick_color.a);
@@ -379,7 +387,10 @@ void DrawGameInterface() {
 	char* bonus_name = "";
 
 	if (bonus != NONE_BONUS) {
-		if (bonus == SPEED3) {
+		if (bonus == SPEED2) {
+			bonus_name = "Speed 2";
+		}
+		else if (bonus == SPEED3) {
 			bonus_name = "Speed 3";
 		}
 	}
@@ -421,56 +432,13 @@ void UpdateGameInterface()
 
 void GameInterfaceEvent(SDL_Event* event)
 {
-
-	if (event->key.keysym.sym == SDLK_ESCAPE) {
-		SetInterfacePage(1);
+	if (event->type == SDL_KEYDOWN) {
+		if (event->key.keysym.sym == SDLK_ESCAPE) {
+			SetInterfacePage(1);
+		}
 	}
 
 	GameEvent(event);
-}
-
-int SDL_RenderFillCircle(SDL_Renderer* renderer, int x, int y, int radius) {
-
-	int offsetx, offsety, d;
-	int status;
-
-	offsetx = 0;
-	offsety = radius;
-	d = radius - 1;
-	status = 0;
-
-	while (offsety >= offsetx) {
-
-		status += SDL_RenderDrawLine(renderer, x - offsety, y + offsetx,
-			x + offsety, y + offsetx);
-		status += SDL_RenderDrawLine(renderer, x - offsetx, y + offsety,
-			x + offsetx, y + offsety);
-		status += SDL_RenderDrawLine(renderer, x - offsetx, y - offsety,
-			x + offsetx, y - offsety);
-		status += SDL_RenderDrawLine(renderer, x - offsety, y - offsetx,
-			x + offsety, y - offsetx);
-
-		if (status < 0) {
-			status = -1;
-			break;
-		}
-
-		if (d >= 2 * offsetx) {
-			d -= 2 * offsetx + 1;
-			offsetx += 1;
-		}
-		else if (d < 2 * (radius - offsety)) {
-			d += 2 * offsety - 1;
-			offsety -= 1;
-		}
-		else {
-			d += 2 * (offsety - offsetx - 1);
-			offsety -= 1;
-			offsetx += 1;
-		}
-	}
-
-	return status;
 }
 
 void CreateMessages()
@@ -480,6 +448,15 @@ void CreateMessages()
 	message_start.font_title = font_roboto_25;
 	message_start.position.x = INTERFACE_WIDTH / 2;
 	message_start.position.y = INTERFACE_HEIGHT / 2 - 60;
+
+	message_speed2 = MSG_Create();
+	strcpy_s(message_speed2.title, 80, "Bonus : Vitesse multiplié par 2 !");
+	strcpy_s(message_speed2.subtitle, 80, "Durée : 5 secondes");
+	message_speed2.font_title = font_roboto_35;
+	message_speed2.font_subtitle = font_roboto_25;
+	message_speed2.position.x = INTERFACE_WIDTH / 2;
+	message_speed2.position.y = INTERFACE_HEIGHT / 2 - 60;
+	message_speed2.space_btw_titles = 55;
 
 	message_speed3 = MSG_Create();
 	strcpy_s(message_speed3.title, 80, "Bonus : Vitesse multiplié par 3 !");
@@ -497,6 +474,7 @@ void CreateMessages()
 	m_image_rocket.texture = image_rocket_texture;
 
 	MSG_AddImage(&message_speed3, &m_image_rocket);
+	MSG_AddImage(&message_speed2, &m_image_rocket);
 
 	message_gameover = MSG_Create();
 	strcpy_s(message_gameover.title, 80, "Game over");
@@ -542,26 +520,54 @@ void CreateMessages()
 	MSG_AddImage(&message_pause, &m_image_pause);
 }
 
+void HideBonusMessages() {
+	HideSpeed2Message();
+	HideSpeed3Message();
+	HideNewballMessage();
+}
+
 void ShowStartMessage()
 {
 	MSG_Show(&message_start);
 }
 
-void HideStartMessage() {
+void HideStartMessage() 
+{
 	MSG_Hide(&message_start);
 }
 
-void ShowSpeed3Message() {
-	MSG_Show(&message_speed3);
+void ShowSpeed2Message() 
+{
+	HideBonusMessages();
+
+	MSG_Show(&message_speed2);
+	timer_message_speed3 = SDL_AddTimer(3000, HideSpeed2Message, NULL);
 }
 
-void HideSpeed3Message() {
+void HideSpeed2Message() 
+{
+	MSG_Hide(&message_speed2);
+	SDL_RemoveTimer(timer_message_speed2);
+}
+
+void ShowSpeed3Message() 
+{
+	HideBonusMessages();
+
+	MSG_Show(&message_speed3);
+	timer_message_speed3 = SDL_AddTimer(3000, HideSpeed3Message, NULL);
+}
+
+void HideSpeed3Message() 
+{
 	MSG_Hide(&message_speed3);
+	SDL_RemoveTimer(timer_message_speed3);
 }
 
 void ShowGameoverMessage()
 {
-	MSG_HideAll();
+	HideBonusMessages();
+
 	MSG_Show(&message_gameover);
 }
 
@@ -572,6 +578,8 @@ void HideGameoverMessage()
 
 void ShowNextlevelMessage(int level)
 {
+	HideBonusMessages();
+
 	char level_string[3];
 	memset(level_string, 3, '\0');
 
@@ -592,6 +600,8 @@ void HideNextlevelMessage()
 
 void ShowNewballMessage()
 {
+	HideBonusMessages();
+
 	MSG_Show(&message_newball);
 	timer_message_newball = SDL_AddTimer(3000, HideNewballMessage, NULL);
 }
@@ -604,6 +614,7 @@ void HideNewballMessage()
 
 void ShowPauseMessage()
 {
+	HideBonusMessages();
 	MSG_Show(&message_pause);
 }
 

@@ -26,9 +26,9 @@ int tile_map_l1[N_BRICK_LINE][N_BRICK_COLUMN] = {
 
 int tile_map_l2[N_BRICK_LINE][N_BRICK_COLUMN] = {
 	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-	{1, 2, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 5, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 	{1, 1, 1, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1},
-	{1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 2, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 5, 1},
 	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 };
 
@@ -42,44 +42,80 @@ int tile_map_l2[N_BRICK_LINE][N_BRICK_COLUMN] = {
 #define BALL_SPAWN_X (INTERFACE_WIDTH / 2)
 #define BALL_SPAWN_Y (INTERFACE_HEIGHT / 2 + 45)
 
-enum BrickIntersection { NONE_INTERSECTION, LEFT_OR_RIGHT, TOP_OR_BOTTOM, CORNER_TOP_RIGHT, CORNER_TOP_LEFT, CORNER_BOTTOM_RIGHT, CORNER_BOTTOM_LEFT, CORNER };
+#define N_LEVEL 2
+
+typedef enum { NONE_INTERSECTION, LEFT_OR_RIGHT, TOP_OR_BOTTOM, CORNER_TOP_RIGHT, CORNER_TOP_LEFT, CORNER_BOTTOM_RIGHT, CORNER_BOTTOM_LEFT, CORNER } BrickIntersection;
+typedef enum { NOT_STARTED = 0, IN_PROGRESS = 1, PAUSED = 2, FINISHED = 3 } GameStatus;
+
+
+static int** tile_map = NULL;
+
+static int bar_width = 175;
+static int bar_height = 12;
+static int bar_x = INTERFACE_WIDTH / 2;
+static int bar_y = INTERFACE_HEIGHT - 80;
+
+static int void_y = INTERFACE_HEIGHT - 65;
+
+static Ball* l_ball = NULL;
+static int n_ball = 0;
+
+static Bonus bonus = NONE_BONUS;
+static int bonus_time_remained = 0;
+static SDL_TimerID timer_bonus_id = NULL;
+
+static GameStatus game_status = NOT_STARTED;
+
+static int n_life = 3;
+static int score = 0;
+static int level_index = 0;
+
+static int time_elapsed = 0;
+static SDL_TimerID timer_id = NULL;
+static SDL_mutex* mutex_time = NULL;
+
+static bool add_ball = false;
+
 
 
 /*
 *	Prototypes.
 */
+static void StartGame();
+
+static void ResetGame();
+static void DestroyBalls();
+
+static void UpdateBallMovement(Ball* ball);
+static BrickIntersection CircleIntersectRect(Circle, struct SDL_Rect);
+
+static void NextLevel();
+
+static void StartTimer();
+static void StopTimer();
+static Uint32 TimerCallback(Uint32 interval, void* parameters);
+
+static void StartPause();
+static void StopPause();
+
+static void SetTileMap(int level);
+static void SetTileMapCase(int x, int y, int case_value);
+
+static void SetBonus(Bonus bonus);
+static void EndBonus();
+
+static Ball* AddBall(double x, double y);
+static void RemoveBall(int index);
+static void StartBall(Ball* ball, double direction);
+
+static int** Alloc2DimIntArray(int L, int C);
+static void Free2DimIntArray(int** array);
 
 
-int** tile_map = NULL;
-
-int bar_width = 175;
-int bar_height = 12;
-int bar_x = INTERFACE_WIDTH / 2;
-int bar_y = INTERFACE_HEIGHT - 80;
-
-int void_y = INTERFACE_HEIGHT - 65;
-
-Ball* l_ball = NULL;
-int n_ball = 0;
-
-enum Bonus bonus = NONE_BONUS;
-int bonus_time_remained = 0;
-SDL_TimerID timer_bonus_id = NULL;
-
-enum GameStatus game_status = NOT_STARTED;
-
-int n_life = 3;
-int score = 0;
-int level_index = 0;
-
-int time_elapsed = 0;
-SDL_TimerID timer_id = NULL;
-SDL_mutex* mutex_time = NULL;
-
-bool add_ball = false;
 
 
-void CreateGame() {
+void CreateGame() 
+{
 
 	SetTileMap(1);
 
@@ -94,13 +130,15 @@ void CreateGame() {
 	ShowStartMessage();
 }
 
-void DestroyGame() {
+void DestroyGame() 
+{
 	Free2DimIntArray(tile_map);
 
 	SDL_DestroyMutex(mutex_time);
 }
 
-void StartGame() {
+void StartGame() 
+{
 	game_status = IN_PROGRESS;
 
 	StartTimer();
@@ -147,7 +185,8 @@ int **Alloc2DimIntArray(int L, int C)
 	return array;
 }
 
-void Free2DimIntArray(int **array) {
+void Free2DimIntArray(int **array) 
+{
 
 	int size_array = sizeof(array);
 
@@ -217,31 +256,28 @@ int CountRemainingBricks()
 	return n_brick_remaining;
 }
 
-int GetBarWidth() {
+int GetBarWidth() 
+{
 	return bar_width;
 }
 
-int GetBarHeight() {
+int GetBarHeight() 
+{
 	return bar_height;
 }
 
-int GetBarX() {
+int GetBarX()
+{
 	return bar_x;
 }
 
-int GetBarY() {
+int GetBarY() 
+{
 	return bar_y;
 }
 
-void SetBarX(int _bar_x) {
-	bar_x = _bar_x;
-}
-
-void SetBarY(int _bar_y) {
-	bar_y = _bar_y;
-}
-
-Ball* AddBall(double x, double y) {
+Ball* AddBall(double x, double y) 
+{
 
 	errno = 0;
 
@@ -252,10 +288,7 @@ Ball* AddBall(double x, double y) {
 		l_ball_tmp = (Ball*)realloc(l_ball, ball_array_new_size);
 		if (l_ball_tmp == NULL) {
 
-			char error_string[94] = { '\0' };
-			strerror_s(error_string, 94, errno);
-
-			fprintf(stderr, "Error realloc : %s", error_string);
+			ShowError("Error realloc : %s", errno);
 
 			free(l_ball);
 			ExitBreakout(EXIT_FAILURE);
@@ -289,7 +322,8 @@ Ball* AddBall(double x, double y) {
 
 }
 
-void RemoveBall(int index) {
+void RemoveBall(int index) 
+{
 
 	errno = 0;
 
@@ -313,10 +347,7 @@ void RemoveBall(int index) {
 	l_ball_tmp = (Ball*)realloc(l_ball, ball_array_new_size);
 	if (l_ball_tmp == NULL) {
 
-		char error_string[94] = { '\0' };
-		strerror_s(error_string, 94, errno);
-
-		fprintf(stderr, "Error realloc : %s", error_string);
+		ShowError("Error realloc : %s", errno);
 
 		free(l_ball);
 		ExitBreakout(EXIT_FAILURE);
@@ -326,7 +357,6 @@ void RemoveBall(int index) {
 }
 
 void StartBall(Ball* ball, double direction)
-
 {
 	if (direction == -1) {
 
@@ -343,7 +373,8 @@ void StartBall(Ball* ball, double direction)
 	ball->speed = 1.0;
 }
 
-Ball* GetBall(int index) {
+Ball* GetBall(int index) 
+{
 	return l_ball + index;
 }
 
@@ -357,7 +388,7 @@ int GetScore()
 	return score;
 }
 
-enum Bonus GetBonus()
+Bonus GetBonus()
 {
 	return bonus;
 }
@@ -368,7 +399,7 @@ void EndBonus()
 		SDL_RemoveTimer(timer_bonus_id);
 	}
 
-	if (bonus == SPEED3) {
+	if (bonus == SPEED2 || bonus == SPEED3) {
 
 		for (int i = 0; i < n_ball; i++) {
 
@@ -379,14 +410,12 @@ void EndBonus()
 				ball->speed_to_restore = -1;
 			}
 		}
-
-		HideSpeed3Message();
 	}
 
 	bonus = NONE_BONUS;
 }
 
-void SetBonus(enum Bonus p_bonus) 
+void SetBonus(Bonus p_bonus) 
 {
 	if (bonus != NULL) {
 		EndBonus();
@@ -395,17 +424,29 @@ void SetBonus(enum Bonus p_bonus)
 	bonus = p_bonus;
 
 	Uint32 interval = 0;
-	if (bonus == SPEED3) {
-		interval = 3000;
+	if (bonus == SPEED2 || bonus == SPEED3) {
 		
 		for (int i = 0; i < n_ball; i++) {
 
 			Ball* ball = l_ball + i;
 			ball->speed_to_restore = ball->speed;
-			ball->speed = ball->speed * 3;
+
+			if (bonus == SPEED2) {
+				ball->speed = ball->speed * 2;
+			}
+			else if (bonus == SPEED3) {
+				ball->speed = ball->speed * 3;
+			}
 		}
 
-		ShowSpeed3Message();
+		if (bonus == SPEED2) {
+			interval = 5000;
+			ShowSpeed2Message();
+		}
+		else if (bonus == SPEED3) {
+			interval = 3000;
+			ShowSpeed3Message();
+		}
 	}
 	
 	if (interval != 0) {
@@ -532,11 +573,13 @@ Uint32 TimerCallback(Uint32 interval, void* parameters)
 	return interval;
 }
 
-int GetNBall() {
+int GetNBall() 
+{
 	return n_ball;
 }
 
-void UpdateBallMovement(Ball* ball) {
+void UpdateBallMovement(Ball* ball) 
+{
 
 	double ball_x = ball->x;
 	double ball_y = ball->y;
@@ -630,7 +673,7 @@ void UpdateBallMovement(Ball* ball) {
 
 				SDL_Rect brick_rect = { brick_center_x, brick_center_y, BRICK_WIDTH , BRICK_HEIGHT };
 				
-				enum BrickIntersection intersection = CircleIntersectRect(ball_circle, brick_rect);
+				BrickIntersection intersection = CircleIntersectRect(ball_circle, brick_rect);
 
 
 				if (intersection != NONE_INTERSECTION) {
@@ -640,10 +683,10 @@ void UpdateBallMovement(Ball* ball) {
 						if (ball->direction >= 0 && ball->direction < 90) {
 							intersection = CORNER;
 						}
-						else if (ball->direction >= 90 && intersection < 180) {
+						else if (ball->direction >= 90 && ball->direction >= 90 < 180) {
 							intersection = TOP_OR_BOTTOM;
 						}
-						else if (ball->direction >= 270 && intersection < 360) {
+						else if (ball->direction >= 270 && ball->direction >= 90 < 360) {
 							intersection = LEFT_OR_RIGHT;
 						}
 					}
@@ -738,7 +781,6 @@ void UpdateBallMovement(Ball* ball) {
 						score += 50;
 
 						SetBonus(SPEED3);
-
 						timer_bonus_id = SDL_AddTimer(3000, EndBonus, NULL);
 					}
 					else if (brick == 3) {
@@ -751,6 +793,12 @@ void UpdateBallMovement(Ball* ball) {
 
 						ShowNewballMessage();
 						add_ball = true;
+					}
+					else if (brick == 5) {
+						score += 50;
+
+						SetBonus(SPEED2);
+						timer_bonus_id = SDL_AddTimer(5000, EndBonus, NULL);
 					}
 
 					if (brick != 0) {
@@ -835,9 +883,9 @@ void UpdateBallMovement(Ball* ball) {
 		}
 	}
 
-	printf("x: %f - %f \n", ball_x, ball->x);
+	/*printf("x: %f - %f \n", ball_x, ball->x);
 	printf("y: %f - %f \n", ball_y, ball->y);
-	printf("speed : %f \n", speed);
+	printf("speed : %f \n", speed);*/
 
 	ball->x = ball_x;
 	ball->y = ball_y;
@@ -852,10 +900,11 @@ void NextLevel()
 	Ball* ball = AddBall(BALL_SPAWN_X, BALL_SPAWN_Y);
 	StartBall(ball, -1);
 
+	Audio_PlayMusic(1, -1);
 	ShowNextlevelMessage(level_index);
 }
 
-enum BrickIntersection CircleIntersectRect(Circle circle, struct SDL_Rect rect)
+BrickIntersection CircleIntersectRect(Circle circle, struct SDL_Rect rect)
 {
 
 	double distance_x = fabs(circle.x - rect.x);
@@ -902,7 +951,8 @@ enum BrickIntersection CircleIntersectRect(Circle circle, struct SDL_Rect rect)
 	
 }
 
-void UpdateGame() {
+void UpdateGame() 
+{
 
 	for (int i = 0; i < n_ball; i++) {
 		Ball *ball = l_ball+i;
@@ -995,6 +1045,18 @@ void GameEvent(SDL_Event* event)
 			}
 		}
 
+		if (game_status == IN_PROGRESS || game_status == PAUSED) {
+
+			if (event->key.keysym.sym == SDLK_n) {
+				if ((level_index + 1) < N_LEVEL) {
+					NextLevel();
+				}
+			}
+			else if (event->key.keysym.sym == SDLK_r) {
+				ResetGame();
+			}
+		}
+
 		break;
 	}
 	case SDL_MOUSEMOTION:
@@ -1035,7 +1097,3 @@ void StopPause()
 	HidePauseMessage();
 }
 
-
-void UpdatePaddleAcceleration() {
-
-}

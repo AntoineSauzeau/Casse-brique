@@ -8,27 +8,42 @@
 #include "SDL/SDL.h"
 #include "SDL/SDL_ttf.h"
 
-
+/*
+	Prototypes.
+*/
 void FreeBreakout();
 void ExitBreakout(int);
 void ShowError(char* format, int code);
 
-void FreeBreakout() {
+
+
+
+void FreeBreakout() 
+{
 	DestroyInterface();
-	SDL_Quit();
 	TTF_Quit();
+	SDL_Quit();
 }
 
-void ExitBreakout(int code) {
+void ExitBreakout(int code)
+{
 	FreeBreakout();
 	exit(code);
 }
 
-void ShowError(char* format, int code) {
+void ShowError(char* format, int code) 
+{
 	char error_string[94] = { '\0' };
 	strerror_s(error_string, 94, errno);
 	fprintf(stderr, format, error_string);
 }
+
+
+
+
+
+
+
 
 int main(int argv, char** args) {
 
@@ -40,7 +55,7 @@ int main(int argv, char** args) {
 	}
 
 	if (TTF_Init() == -1) {
-		SDL_Log("Erreur d'initialisation de TTF_Init : %s\n", TTF_GetError());
+		SDL_Log("Unable to initialize TTF : %s", TTF_GetError());
 		ExitBreakout(EXIT_FAILURE);
 	}
 

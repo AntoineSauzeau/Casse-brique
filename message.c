@@ -8,9 +8,9 @@
 #include "colors.h"
 
 
-Message** l_message_displayed = NULL;
-SDL_mutex* l_message_mutex = NULL;
-int n_message_displayed = 0;
+static Message** l_message_displayed = NULL;
+static SDL_mutex* l_message_mutex = NULL;
+static int n_message_displayed = 0;
 
 
 

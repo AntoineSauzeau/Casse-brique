@@ -1,3 +1,5 @@
+#pragma once
+
 #include <SDL_ttf.h>
 
 typedef struct {
@@ -23,7 +25,11 @@ void TSW_RemoveValue(TSW* tsw, char* value);
 
 void TSW_Next(TSW* tsw);
 void TSW_Previous(TSW* tsw);
+void TSW_UpdateAll();
 
-void TSW_Draw(TSW* tsw);
+void TSW_DrawAll();
 void TSW_Show(TSW* tsw);
 void TSW_Hide(TSW* tsw);
+
+// GETTERS
+char* TSW_GetValue(TSW* tsw);

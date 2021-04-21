@@ -23,6 +23,12 @@ static SDL_Texture* right_arrow_texture = NULL;
 /*
 *	Prototypes.
 */
+static void TSW_Draw(TSW* tsw);
+static bool TSW_InLeftArrowBounds(TSW* tsw, int x, int y);
+static bool TSW_InRightArrowBounds(TSW* tsw, int x, int y);
+
+
+
 
 void TSW_InitModule(SDL_Renderer* _renderer)
 {
@@ -72,26 +78,49 @@ void TSW_AddValue(TSW* tsw, char* value)
 {
 	errno = 0;
 
-	int new_size = (tsw->n_value + 1) * 50 * sizeof(char);
-	char** ptr_tmp = NULL;
-	ptr_tmp = realloc(tsw->l_value, new_size);
+	char** ptr_tmp_1 = NULL;
+	char* ptr_tmp_2 = NULL;
 
-	if (ptr_tmp == NULL) {
+	ptr_tmp_1 = (char **) realloc(tsw->l_value, (tsw->n_value + 1) * ((int) sizeof(char *)));
+	if (ptr_tmp_1 != NULL) {
 
-		//ShowError("Erreur realloc : %s", errno);
-		printf("qsdsq");
+		tsw->l_value = ptr_tmp_1;
 
-		free(ptr_tmp);
+		for (int i = 0; i < (tsw->n_value + 1); i++) {
+
+			if (i == tsw->n_value) {
+				tsw->l_value[i] = (char *) malloc(50 * sizeof(char));
+			}
+			else {
+				ptr_tmp_2 = (char*) realloc(tsw->l_value[i], 50 * (int) sizeof(char));
+				if (ptr_tmp_2 != NULL) {
+					tsw->l_value[i] = ptr_tmp_2;
+				}
+				else {
+					break;
+				}
+			}
+		}
+	}
+
+	if (errno != 0) {
+
+		ShowError("Erreur realloc : %s", errno);
+
+		for (int i = 0; i < tsw->n_value; i++) {
+			free(tsw->l_value[i]);
+		}
+
+		free(ptr_tmp_1);
+		free(ptr_tmp_2);
+
 		ExitBreakout(EXIT_FAILURE);
 	}
 
-	tsw->l_value = ptr_tmp;
-	printf("aa");
-
 	tsw->n_value++;
 	if (tsw->l_value != NULL) {
-		memset(tsw->l_value[tsw->n_value - 1], '\0', 50);
-		strcpy_s(tsw->l_value[tsw->n_value - 1], 15, "value");
+		memset(tsw->l_value[(tsw->n_value - 1)], '\0', 50);
+		strcpy_s(tsw->l_value[(tsw->n_value - 1)], 50, value);
 	}
 }
 
@@ -128,7 +157,8 @@ void TSW_RemoveValue(TSW* tsw, char* value)
 	tsw->n_value--;
 }
 
-void TSW_Next(TSW* tsw) {
+void TSW_Next(TSW* tsw) 
+{
 
 	if (tsw->index + 1 == tsw->n_value) {
 		tsw->index = 0;
@@ -146,6 +176,84 @@ void TSW_Previous(TSW* tsw)
 	else {
 		tsw->index--;
 	}
+}
+
+void TSW_UpdateAll() 
+{
+	
+	int x, y = 0;
+	SDL_GetMouseState(&x, &y);
+
+	for (int i = 0; i < n_tsw; i++) {
+		
+		if (TSW_InLeftArrowBounds(l_tsw[i], x, y)) {
+			TSW_Previous(l_tsw[i]);
+		}
+		else if (TSW_InRightArrowBounds(l_tsw[i], x, y)) {
+			TSW_Next(l_tsw[i]);
+		}
+	}
+}
+
+bool TSW_InLeftArrowBounds(TSW* tsw, int x, int y)
+{
+	if (tsw->n_value == 0) {
+		return false;
+	}
+
+	int arrow_width = left_arrow_surface->w * tsw->arrow_size_ratio;
+	int arrow_height = left_arrow_surface->h * tsw->arrow_size_ratio;
+
+	SDL_Surface* text_value_surface = TTF_RenderText_Blended(tsw->font, tsw->l_value[tsw->index], tsw->color);
+	if (text_value_surface == NULL) {
+		fprintf(stderr, "Error TTF_RenderText_Blended : %s", TTF_GetError());
+		return;
+	}
+
+	SDL_Rect left_arrow_pos;
+	left_arrow_pos.x = tsw->pos.x - text_value_surface->w / 2 - tsw->padding - arrow_width;
+	left_arrow_pos.y = tsw->pos.y - arrow_height / 2;
+	left_arrow_pos.w = arrow_width;
+	left_arrow_pos.h = arrow_height;
+
+	SDL_Rect mouse_pos;
+	mouse_pos.x = x;
+	mouse_pos.y = y;
+	mouse_pos.w = 1;
+	mouse_pos.h = 1;
+
+	return SDL_HasIntersection(&left_arrow_pos, &mouse_pos);
+
+}
+
+bool TSW_InRightArrowBounds(TSW* tsw, int x, int y) 
+{
+	if (tsw->n_value == 0) {
+		return false;
+	}
+
+	int arrow_width = left_arrow_surface->w * tsw->arrow_size_ratio;
+	int arrow_height = left_arrow_surface->h * tsw->arrow_size_ratio;
+
+	SDL_Surface* text_value_surface = TTF_RenderText_Blended(tsw->font, tsw->l_value[tsw->index], tsw->color);
+	if (text_value_surface == NULL) {
+		fprintf(stderr, "Error TTF_RenderText_Blended : %s", TTF_GetError());
+		return;
+	}
+
+	SDL_Rect right_arrow_pos;
+	right_arrow_pos.x = tsw->pos.x + text_value_surface->w / 2 + tsw->padding;
+	right_arrow_pos.y = tsw->pos.y - arrow_height / 2;
+	right_arrow_pos.w = arrow_width;
+	right_arrow_pos.h = arrow_height;
+
+	SDL_Rect mouse_pos;
+	mouse_pos.x = x;
+	mouse_pos.y = y;
+	mouse_pos.w = 1;
+	mouse_pos.h = 1;
+
+	return SDL_HasIntersection(&right_arrow_pos, &mouse_pos);
 }
 
 void TSW_Show(TSW* tsw)
@@ -208,42 +316,61 @@ void TSW_Hide(TSW* tsw)
 	}
 }
 
-void TSW_Draw(TSW* tsw) {
+void TSW_Draw(TSW* tsw) 
+{
+
+	if (tsw->n_value == 0) {
+		return;
+	}
+
+	int arrow_width = left_arrow_surface->w * tsw->arrow_size_ratio;
+	int arrow_height = left_arrow_surface->h * tsw->arrow_size_ratio;
 
 	SDL_Surface* text_value_surface = TTF_RenderText_Blended(tsw->font, tsw->l_value[tsw->index], tsw->color);
-	if (text_value_surface != NULL) {
-
-		SDL_Texture* text_value_texture = SDL_CreateTextureFromSurface(renderer, text_value_surface);
-
-		struct SDL_Rect text_value_pos;
-		text_value_pos.x = tsw->pos.x - text_value_surface->w / 2;
-		text_value_pos.y = tsw->pos.y - text_value_surface->h / 2;
-		text_value_pos.w = text_value_surface->w;
-		text_value_pos.h = text_value_surface->h;
-
-		SDL_RenderCopy(renderer, text_value_texture, NULL, &text_value_pos);
-
-		SDL_DestroyTexture(text_value_texture);
-	}
-	else {
+	if (text_value_surface == NULL) {
 		fprintf(stderr, "Error TTF_RenderText_Blended : %s", TTF_GetError());
+		return;
 	}
+
+	SDL_Texture* text_value_texture = SDL_CreateTextureFromSurface(renderer, text_value_surface);
+
+	struct SDL_Rect text_value_pos;
+	text_value_pos.x = tsw->pos.x - text_value_surface->w / 2;
+	text_value_pos.y = tsw->pos.y - text_value_surface->h / 2;
+	text_value_pos.w = text_value_surface->w;
+	text_value_pos.h = text_value_surface->h;
+
+	SDL_RenderCopy(renderer, text_value_texture, NULL, &text_value_pos);
+
+	SDL_DestroyTexture(text_value_texture);
 
 	SDL_Rect left_arrow_pos;
-	left_arrow_pos.x = tsw->pos.x - text_value_surface->w / 2 - tsw->padding - left_arrow_surface->w;
-	left_arrow_pos.y = tsw->pos.y - text_value_surface->h / 2;
-	left_arrow_pos.w = left_arrow_surface->w;
-	left_arrow_pos.h = left_arrow_surface->h;
+	left_arrow_pos.x = tsw->pos.x - text_value_surface->w / 2 - tsw->padding - arrow_width;
+	left_arrow_pos.y = tsw->pos.y - arrow_height / 2;
+	left_arrow_pos.w = arrow_width;
+	left_arrow_pos.h = arrow_height;
 
 	SDL_RenderCopy(renderer, left_arrow_texture, NULL, &left_arrow_pos);
 
 	SDL_Rect right_arrow_pos;
 	right_arrow_pos.x = tsw->pos.x + text_value_surface->w / 2 + tsw->padding;
-	right_arrow_pos.y = tsw->pos.y - text_value_surface->h / 2;
-	right_arrow_pos.w = right_arrow_surface->w;
-	right_arrow_pos.h = right_arrow_surface->h;
+	right_arrow_pos.y = tsw->pos.y - arrow_height / 2;
+	right_arrow_pos.w = arrow_width;
+	right_arrow_pos.h = arrow_height;
 
 	SDL_RenderCopy(renderer, right_arrow_texture, NULL, &right_arrow_pos);
 
 	SDL_FreeSurface(text_value_surface);
+}
+
+void TSW_DrawAll() 
+{
+	for (int i = 0; i < n_tsw; i++) {
+		TSW_Draw(l_tsw[i]);
+	}
+}
+
+char* TSW_GetValue(TSW* tsw)
+{
+	return tsw->l_value[tsw->index];
 }

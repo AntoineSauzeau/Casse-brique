@@ -13,6 +13,8 @@ void GameInterfaceEvent(SDL_Event* event);
 /* Messages */
 void ShowStartMessage();
 void HideStartMessage();
+void ShowSpeed2Message();
+void HideSpeed2Message();
 void ShowSpeed3Message();
 void HideSpeed3Message();
 void ShowGameoverMessage();
@@ -24,5 +26,3 @@ void HideNewballMessage();
 void ShowPauseMessage();
 void HidePauseMessage();
 
-
-int SDL_RenderFillCircle(SDL_Renderer* renderer, int x, int y, int radius);
