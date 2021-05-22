@@ -45,17 +45,18 @@ void ShowError(char* format, int code)
 
 
 
-int main(int argv, char** args) {
+int main(int argv, char** args) 
+{
 
 	printf("Starting...");
 	
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
-		SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
+		SDL_Log("Unable to initialize SDL: %s \n", SDL_GetError());
 		ExitBreakout(EXIT_FAILURE);
 	}
 
 	if (TTF_Init() == -1) {
-		SDL_Log("Unable to initialize TTF : %s", TTF_GetError());
+		SDL_Log("Unable to initialize TTF : %s \n", TTF_GetError());
 		ExitBreakout(EXIT_FAILURE);
 	}
 

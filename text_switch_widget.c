@@ -23,7 +23,6 @@ static SDL_Texture* right_arrow_texture = NULL;
 /*
 *	Prototypes.
 */
-static void TSW_Draw(TSW* tsw);
 static bool TSW_InLeftArrowBounds(TSW* tsw, int x, int y);
 static bool TSW_InRightArrowBounds(TSW* tsw, int x, int y);
 
@@ -70,6 +69,8 @@ TSW TSW_Create()
 	tsw.arrow_size_ratio = 1.;
 	tsw.padding = 10;
 	tsw.color = WHITE;
+
+	tsw.callback = NULL;
 
 	return tsw;
 }
@@ -140,9 +141,8 @@ void TSW_RemoveValue(TSW* tsw, char* value)
 		}
 	}
 
-	int new_size = (tsw->n_value - 1) * sizeof(char[50]);
 	TSW** ptr_tmp = NULL;
-	ptr_tmp = realloc(tsw->l_value, new_size);
+	ptr_tmp = realloc(tsw->l_value, (tsw->n_value - 1) * sizeof(char[50]));
 
 	if (ptr_tmp == NULL) {
 
@@ -166,6 +166,8 @@ void TSW_Next(TSW* tsw)
 	else {
 		tsw->index++;
 	}
+
+	tsw->callback(tsw->l_value[tsw->index]);
 }
 
 void TSW_Previous(TSW* tsw) 
@@ -176,6 +178,8 @@ void TSW_Previous(TSW* tsw)
 	else {
 		tsw->index--;
 	}
+
+	tsw->callback(tsw->l_value[tsw->index]);
 }
 
 void TSW_UpdateAll() 
@@ -296,9 +300,8 @@ void TSW_Hide(TSW* tsw)
 		}
 	}
 
-	int new_size = (n_tsw + 1) * sizeof(TSW*);
 	TSW** ptr_tmp = NULL;
-	ptr_tmp = realloc(l_tsw, new_size);
+	ptr_tmp = realloc(l_tsw, (n_tsw + 1) * sizeof(TSW*));
 
 	if (ptr_tmp == NULL) {
 
@@ -313,6 +316,13 @@ void TSW_Hide(TSW* tsw)
 	n_tsw--;
 	if (l_tsw != NULL) {
 		l_tsw[n_tsw - 1] = tsw;
+	}
+}
+
+void TSW_HideAll() {
+
+	for (int i = 0; i < n_tsw; i++) {
+		TSW_Hide(l_tsw[i]);
 	}
 }
 

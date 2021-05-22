@@ -462,7 +462,7 @@ int MessageHeight(SDL_Renderer* renderer, Message* message) {
 			title_height = txt_title_surface->h;
 		}
 		else {
-			SDL_Log("Error TTF_RenderText_Blended : %s", TTF_GetError());
+			SDL_Log("Error TTF_RenderText_Blended : %s \n", TTF_GetError());
 		}
 
 		SDL_FreeSurface(txt_title_surface);
@@ -475,7 +475,7 @@ int MessageHeight(SDL_Renderer* renderer, Message* message) {
 			subtitle_height = txt_subtitle_surface->h;
 		}
 		else {
-			SDL_Log("Error TTF_RenderText_Blended : %s", TTF_GetError());
+			SDL_Log("Error TTF_RenderText_Blended : %s \n", TTF_GetError());
 		}
 
 		SDL_FreeSurface(txt_subtitle_surface);

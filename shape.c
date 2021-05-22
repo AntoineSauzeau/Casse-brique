@@ -1,5 +1,9 @@
 #include "shape.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
 int SDL_RenderFillCircle(SDL_Renderer* renderer, int x, int y, int radius) 
 {
 
@@ -55,5 +59,44 @@ void SDL_RenderDrawThickRect(SDL_Renderer* renderer, SDL_Rect* rect, int thickne
 		rect->h = rect->h + i * 2;
 
 		SDL_RenderDrawRect(renderer, rect);
+	}
+}
+
+void SDL_RenderDrawDashedLine(SDL_Renderer* renderer, SDL_Rect rect, int dash_length, int space_length) {
+
+	int direction;			//0: horizontal, 1: vertical
+	if (rect.w < rect.h) {
+		direction = 1;
+	}
+	else {
+		direction = 0;
+	}
+
+	int n;
+	if (direction == 0) {
+		n = floor(rect.w / (dash_length + space_length));
+	}
+	else {
+		n = floor(rect.h / (dash_length + space_length));
+	}
+
+	for (int i = 0; i < n; i++) {
+
+		int x1, x2, y1, y2;
+
+		if (direction == 0) {
+			x1 = rect.x + i * (dash_length + space_length);
+			x2 = x1 + dash_length;
+			y1 = rect.y;
+			y2 = y1 + (rect.h - 1);
+		}
+		else {
+			x1 = rect.x;
+			x2 = x1 + (rect.w - 1);
+			y1 = rect.x + i * (dash_length + space_length);
+			y2 = y1 + dash_length;
+		}
+
+		SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
 	}
 }

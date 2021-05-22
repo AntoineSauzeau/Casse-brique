@@ -111,7 +111,7 @@ void StartUpdateLoop() {
 
 	update_thread = SDL_CreateThread(UpdateLoop, "UpdateThread", NULL);
 	if (update_thread == NULL) {
-		fprintf(stderr, "Erreur lors du lancement du thread d'affichage");
+		fprintf(stderr, "Erreur lors du lancement du thread d'affichage \n");
 
 		ExitBreakout(EXIT_FAILURE);
 	}

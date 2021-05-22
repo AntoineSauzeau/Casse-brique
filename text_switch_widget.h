@@ -13,7 +13,7 @@ typedef struct {
 	double arrow_size_ratio;
 	SDL_Point pos;
 
-
+	void (*callback)(char*);
 } TSW;
 
 void TSW_InitModule(SDL_Renderer* renderer);
@@ -27,9 +27,12 @@ void TSW_Next(TSW* tsw);
 void TSW_Previous(TSW* tsw);
 void TSW_UpdateAll();
 
+void TSW_Draw(TSW* tsw);
 void TSW_DrawAll();
+
 void TSW_Show(TSW* tsw);
 void TSW_Hide(TSW* tsw);
+void TSW_HideAll();
 
 // GETTERS
 char* TSW_GetValue(TSW* tsw);
